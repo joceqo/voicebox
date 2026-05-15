@@ -61,7 +61,7 @@ import { AudioSampleUpload } from './AudioSampleUpload';
 import { SampleList } from './SampleList';
 
 const MAX_AUDIO_DURATION_SECONDS = 30;
-const PRESET_ONLY_ENGINES = new Set(['kokoro', 'supertonic', 'qwen_custom_voice']);
+const PRESET_ONLY_ENGINES = new Set(['kokoro', 'supertonic', 'kyutai_pocket', 'qwen_custom_voice']);
 const DEFAULT_ENGINE_OPTIONS = [
   { value: 'qwen', label: 'Qwen3-TTS' },
   { value: 'qwen_custom_voice', label: 'Qwen CustomVoice' },
@@ -71,6 +71,7 @@ const DEFAULT_ENGINE_OPTIONS = [
   { value: 'tada', label: 'TADA' },
   { value: 'kokoro', label: 'Kokoro 82M' },
   { value: 'supertonic', label: 'Supertonic-3' },
+  { value: 'kyutai_pocket', label: 'Kyutai Pocket TTS' },
 ] as const;
 
 function makeProfileSchema(t: (key: string) => string) {
@@ -899,6 +900,7 @@ export function ProfileForm() {
                               <SelectContent>
                                 <SelectItem value="kokoro">Kokoro 82M</SelectItem>
                                 <SelectItem value="supertonic">Supertonic-3</SelectItem>
+                                <SelectItem value="kyutai_pocket">Kyutai Pocket TTS</SelectItem>
                                 <SelectItem value="qwen_custom_voice">Qwen CustomVoice</SelectItem>
                               </SelectContent>
                             </Select>

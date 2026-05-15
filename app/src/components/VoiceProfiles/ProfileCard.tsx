@@ -22,6 +22,7 @@ import { useUIStore } from '@/stores/uiStore';
 const ENGINE_DISPLAY_NAMES: Record<string, string> = {
   kokoro: 'Kokoro',
   supertonic: 'Supertonic',
+  kyutai_pocket: 'Kyutai',
   qwen_custom_voice: 'CustomVoice',
 };
 

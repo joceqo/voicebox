@@ -104,6 +104,21 @@ async def list_preset_voices(engine: str):
                 for vid, name, gender, lang in SUPERTONIC_VOICES
             ],
         }
+    if engine == "kyutai_pocket":
+        from ..backends.kyutai_pocket_backend import KYUTAI_VOICES
+
+        return {
+            "engine": engine,
+            "voices": [
+                {
+                    "voice_id": vid,
+                    "name": name,
+                    "gender": gender,
+                    "language": lang,
+                }
+                for vid, name, gender, lang in KYUTAI_VOICES
+            ],
+        }
     if engine == "qwen_custom_voice":
         from ..backends.qwen_custom_voice_backend import QWEN_CUSTOM_VOICES
 

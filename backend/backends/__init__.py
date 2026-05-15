@@ -216,6 +216,7 @@ TTS_ENGINES = {
     "tada": "TADA",
     "kokoro": "Kokoro",
     "supertonic": "Supertonic-3",
+    "kyutai_pocket": "Kyutai Pocket TTS",
 }
 
 LLM_ENGINES = {
@@ -376,6 +377,14 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
                 "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv",
                 "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi",
             ],
+        ),
+        ModelConfig(
+            model_name="kyutai-pocket-tts",
+            display_name="Kyutai Pocket TTS (CPU, 6 langs, 26 preset voices)",
+            engine="kyutai_pocket",
+            hf_repo_id="kyutai/pocket-tts",
+            size_mb=400,
+            languages=["en", "fr", "de", "it", "es", "pt"],
         ),
     ]
 
@@ -721,6 +730,10 @@ def get_tts_backend_for_engine(engine: str) -> TTSBackend:
             from .supertonic_backend import SupertonicTTSBackend
 
             backend = SupertonicTTSBackend()
+        elif engine == "kyutai_pocket":
+            from .kyutai_pocket_backend import KyutaiPocketTTSBackend
+
+            backend = KyutaiPocketTTSBackend()
         elif engine == "qwen_custom_voice":
             from .qwen_custom_voice_backend import QwenCustomVoiceBackend
 

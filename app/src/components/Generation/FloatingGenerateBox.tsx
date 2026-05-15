@@ -152,6 +152,7 @@ export function FloatingGenerateBox({
     | 'tada'
     | 'kokoro'
     | 'supertonic'
+    | 'kyutai_pocket'
     | 'qwen_custom_voice';
   useEffect(() => {
     if (selectedProfile?.language) {
@@ -164,7 +165,7 @@ export function FloatingGenerateBox({
     } else if (selectedProfile && selectedProfile.voice_type !== 'preset') {
       // Cloned/designed profile with no default — ensure a compatible (non-preset) engine
       const currentEngine = form.getValues('engine');
-      const presetEngines = new Set(['kokoro', 'supertonic', 'qwen_custom_voice']);
+      const presetEngines = new Set(['kokoro', 'supertonic', 'kyutai_pocket', 'qwen_custom_voice']);
       if (currentEngine && presetEngines.has(currentEngine)) {
         form.setValue('engine', 'qwen');
       }

@@ -57,6 +57,10 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 # for the same reason en_core_web_sm does.
 unidic-lite>=1.0.8
 
+# Kyutai Pocket TTS (PyTorch CPU, ~100M params, voice cloning from audio).
+# English only at the time of writing. Models pulled from kyutai/pocket-tts.
+pocket-tts
+
 # Audio processing
 librosa>=0.10.0
 soundfile>=0.12.0
