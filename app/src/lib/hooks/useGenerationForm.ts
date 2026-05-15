@@ -28,6 +28,7 @@ const generationSchema = z.object({
       'tada',
       'kokoro',
       'supertonic',
+      'kyutai_pocket',
     ])
     .optional(),
   personality: z.boolean().optional(),
@@ -103,9 +104,11 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
                   ? 'kokoro'
                   : engine === 'supertonic'
                     ? 'supertonic-3'
-                    : engine === 'qwen_custom_voice'
-                      ? `qwen-custom-voice-${data.modelSize}`
-                      : `qwen-tts-${data.modelSize}`;
+                    : engine === 'kyutai_pocket'
+                      ? 'kyutai-pocket-tts'
+                      : engine === 'qwen_custom_voice'
+                        ? `qwen-custom-voice-${data.modelSize}`
+                        : `qwen-tts-${data.modelSize}`;
       const displayName =
         engine === 'luxtts'
           ? 'LuxTTS'
@@ -121,13 +124,15 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
                   ? 'Kokoro 82M'
                   : engine === 'supertonic'
                     ? 'Supertonic-3'
-                    : engine === 'qwen_custom_voice'
-                      ? data.modelSize === '1.7B'
-                        ? 'Qwen CustomVoice 1.7B'
-                        : 'Qwen CustomVoice 0.6B'
-                      : data.modelSize === '1.7B'
-                        ? 'Qwen TTS 1.7B'
-                        : 'Qwen TTS 0.6B';
+                    : engine === 'kyutai_pocket'
+                      ? 'Kyutai Pocket TTS'
+                      : engine === 'qwen_custom_voice'
+                        ? data.modelSize === '1.7B'
+                          ? 'Qwen CustomVoice 1.7B'
+                          : 'Qwen CustomVoice 0.6B'
+                        : data.modelSize === '1.7B'
+                          ? 'Qwen TTS 1.7B'
+                          : 'Qwen TTS 0.6B';
 
       // Check if model needs downloading
       try {

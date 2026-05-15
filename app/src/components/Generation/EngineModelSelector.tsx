@@ -28,6 +28,7 @@ const ENGINE_OPTIONS = [
   { value: 'tada:3B', label: 'TADA 3B Multilingual', engine: 'tada' },
   { value: 'kokoro', label: 'Kokoro 82M', engine: 'kokoro' },
   { value: 'supertonic', label: 'Supertonic-3', engine: 'supertonic' },
+  { value: 'kyutai_pocket', label: 'Kyutai Pocket TTS', engine: 'kyutai_pocket' },
 ] as const;
 
 const ENGINE_DESCRIPTIONS: Record<string, string> = {
@@ -39,6 +40,7 @@ const ENGINE_DESCRIPTIONS: Record<string, string> = {
   tada: 'HumeAI, 700s+ coherent audio',
   kokoro: '82M params, CPU realtime, 8 langs',
   supertonic: 'ONNX, CPU, 31 langs, 10 preset voices',
+  kyutai_pocket: 'PyTorch CPU, 6 langs, 26 preset voices, ~10x realtime',
 };
 
 /** Engines that only support English and should force language to 'en' on select. */

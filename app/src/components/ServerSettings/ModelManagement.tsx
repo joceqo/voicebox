@@ -71,6 +71,8 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
     'Kokoro 82M by hexgrad. Tiny 82M-parameter TTS that runs at CPU realtime. Supports 8 languages with pre-built voice styles. Apache 2.0 licensed.',
   'supertonic-3':
     'Supertonic-3 by Supertone. ONNX-based multilingual TTS running on CPU. 31 languages, 10 preset voices (M1-M5, F1-F5), ~167x realtime. OpenRAIL-M license.',
+  'kyutai-pocket-tts':
+    'Kyutai Pocket TTS. PyTorch-based TTS for CPU, ~10x realtime, ~200ms first-audio latency. 6 languages (en, fr, de, it, es, pt) and 26 built-in preset voices.',
   'qwen-custom-voice-1.7B':
     'Qwen3-TTS CustomVoice 1.7B by Alibaba. 9 premium preset voices with instruct-based style control for tone, emotion, and prosody. Supports 10 languages.',
   'qwen-custom-voice-0.6B':
@@ -417,7 +419,8 @@ export function ModelManagement() {
         m.model_name.startsWith('chatterbox') ||
         m.model_name.startsWith('tada') ||
         m.model_name.startsWith('kokoro') ||
-        m.model_name.startsWith('supertonic'),
+        m.model_name.startsWith('supertonic') ||
+        m.model_name.startsWith('kyutai'),
     ) ?? [];
   const whisperModels = modelStatus?.models.filter((m) => m.model_name.startsWith('whisper')) ?? [];
   const llmModels = modelStatus?.models.filter((m) => m.model_name.startsWith('qwen3-')) ?? [];

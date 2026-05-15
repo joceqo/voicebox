@@ -88,6 +88,7 @@ export const ENGINE_LANGUAGES: Record<string, readonly LanguageCode[]> = {
     'et', 'fi', 'fr', 'hi', 'hr', 'hu', 'id', 'it', 'lt', 'lv',
     'nl', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'tr', 'uk', 'vi',
   ],
+  kyutai_pocket: ['en', 'fr', 'de', 'it', 'es', 'pt'],
 } as const;
 
 /** Helper: get language options for a given engine. */

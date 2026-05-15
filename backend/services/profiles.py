@@ -73,6 +73,11 @@ def _get_preset_voice_ids(engine: str) -> set[str]:
 
         return {voice_id for voice_id, _name, _gender, _lang in SUPERTONIC_VOICES}
 
+    if engine == "kyutai_pocket":
+        from ..backends.kyutai_pocket_backend import KYUTAI_VOICES
+
+        return {voice_id for voice_id, _name, _gender, _lang in KYUTAI_VOICES}
+
     if engine == "qwen_custom_voice":
         from ..backends.qwen_custom_voice_backend import QWEN_CUSTOM_VOICES
 
