@@ -11,27 +11,40 @@
 /** All languages that any engine supports. */
 export const ALL_LANGUAGES = {
   ar: 'Arabic',
+  bg: 'Bulgarian',
+  cs: 'Czech',
   da: 'Danish',
   de: 'German',
   el: 'Greek',
   en: 'English',
   es: 'Spanish',
+  et: 'Estonian',
   fi: 'Finnish',
   fr: 'French',
   he: 'Hebrew',
   hi: 'Hindi',
+  hr: 'Croatian',
+  hu: 'Hungarian',
+  id: 'Indonesian',
   it: 'Italian',
   ja: 'Japanese',
   ko: 'Korean',
+  lt: 'Lithuanian',
+  lv: 'Latvian',
   ms: 'Malay',
   nl: 'Dutch',
   no: 'Norwegian',
   pl: 'Polish',
   pt: 'Portuguese',
+  ro: 'Romanian',
   ru: 'Russian',
+  sk: 'Slovak',
+  sl: 'Slovenian',
   sv: 'Swedish',
   sw: 'Swahili',
   tr: 'Turkish',
+  uk: 'Ukrainian',
+  vi: 'Vietnamese',
   zh: 'Chinese',
 } as const;
 
@@ -70,6 +83,11 @@ export const ENGINE_LANGUAGES: Record<string, readonly LanguageCode[]> = {
   tada: ['en', 'ar', 'zh', 'de', 'es', 'fr', 'it', 'ja', 'pl', 'pt'],
   kokoro: ['en', 'es', 'fr', 'hi', 'it', 'pt', 'ja', 'zh'],
   qwen_custom_voice: ['zh', 'en', 'ja', 'ko', 'de', 'fr', 'ru', 'pt', 'es', 'it'],
+  supertonic: [
+    'en', 'ko', 'ja', 'ar', 'bg', 'cs', 'da', 'de', 'el', 'es',
+    'et', 'fi', 'fr', 'hi', 'hr', 'hu', 'id', 'it', 'lt', 'lv',
+    'nl', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'tr', 'uk', 'vi',
+  ],
 } as const;
 
 /** Helper: get language options for a given engine. */
