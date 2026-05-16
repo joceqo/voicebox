@@ -42,6 +42,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
 import type { ActiveDownloadTask, HuggingFaceModelInfo, ModelStatus } from '@/lib/api/types';
+import { useEngineCatalog } from '@/lib/hooks/useEngineCatalog';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
 import { usePlatform } from '@/platform/PlatformContext';
 import { useServerStore } from '@/stores/serverStore';
@@ -169,6 +170,8 @@ export function ModelManagement() {
     queryFn: () => apiClient.getModelsCacheDir(),
     staleTime: 1000 * 60 * 5,
   });
+
+  const { data: engineCatalog } = useEngineCatalog();
 
   const { data: activeTasks } = useQuery({
     queryKey: ['activeTasks'],
@@ -410,20 +413,26 @@ export function ModelManagement() {
     setDetailOpen(true);
   };
 
-  const voiceModels =
-    modelStatus?.models.filter(
-      (m) =>
-        m.model_name.startsWith('qwen-tts') ||
-        m.model_name.startsWith('qwen-custom-voice') ||
-        m.model_name.startsWith('luxtts') ||
-        m.model_name.startsWith('chatterbox') ||
-        m.model_name.startsWith('tada') ||
-        m.model_name.startsWith('kokoro') ||
-        m.model_name.startsWith('supertonic') ||
-        m.model_name.startsWith('kyutai'),
-    ) ?? [];
+  // Group models by the engine they belong to. The set of TTS / LLM model
+  // names is whatever the server's /engines registry declares; the model
+  // status feed itself just lists what's installable on disk.
+  const ttsModelNames = useMemo(
+    () =>
+      new Set(
+        engineCatalog?.tts.flatMap((e) => e.models.map((m) => m.model_name)) ?? [],
+      ),
+    [engineCatalog],
+  );
+  const llmModelNames = useMemo(
+    () =>
+      new Set(
+        engineCatalog?.llm.flatMap((e) => e.models.map((m) => m.model_name)) ?? [],
+      ),
+    [engineCatalog],
+  );
+  const voiceModels = modelStatus?.models.filter((m) => ttsModelNames.has(m.model_name)) ?? [];
   const whisperModels = modelStatus?.models.filter((m) => m.model_name.startsWith('whisper')) ?? [];
-  const llmModels = modelStatus?.models.filter((m) => m.model_name.startsWith('qwen3-')) ?? [];
+  const llmModels = modelStatus?.models.filter((m) => llmModelNames.has(m.model_name)) ?? [];
 
   // Build sections
   const sections: { label: string; models: ModelStatus[] }[] = [

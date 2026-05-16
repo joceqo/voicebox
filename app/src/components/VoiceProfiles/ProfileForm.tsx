@@ -40,6 +40,7 @@ import type { EffectConfig, PresetVoice, VoiceType } from '@/lib/api/types';
 import { LANGUAGE_CODES, LANGUAGE_OPTIONS, type LanguageCode } from '@/lib/constants/languages';
 import { useAudioPlayer } from '@/lib/hooks/useAudioPlayer';
 import { useAudioRecording } from '@/lib/hooks/useAudioRecording';
+import { useEngineMetadata } from '@/lib/hooks/useEngineCatalog';
 import {
   useAddSample,
   useCreateProfile,
@@ -61,18 +62,6 @@ import { AudioSampleUpload } from './AudioSampleUpload';
 import { SampleList } from './SampleList';
 
 const MAX_AUDIO_DURATION_SECONDS = 30;
-const PRESET_ONLY_ENGINES = new Set(['kokoro', 'supertonic', 'kyutai_pocket', 'qwen_custom_voice']);
-const DEFAULT_ENGINE_OPTIONS = [
-  { value: 'qwen', label: 'Qwen3-TTS' },
-  { value: 'qwen_custom_voice', label: 'Qwen CustomVoice' },
-  { value: 'luxtts', label: 'LuxTTS' },
-  { value: 'chatterbox', label: 'Chatterbox' },
-  { value: 'chatterbox_turbo', label: 'Chatterbox Turbo' },
-  { value: 'tada', label: 'TADA' },
-  { value: 'kokoro', label: 'Kokoro 82M' },
-  { value: 'supertonic', label: 'Supertonic-3' },
-  { value: 'kyutai_pocket', label: 'Kyutai Pocket TTS' },
-] as const;
 
 function makeProfileSchema(t: (key: string) => string) {
   const baseProfileSchema = z.object({
@@ -154,7 +143,7 @@ export function ProfileForm() {
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [isValidatingAudio, setIsValidatingAudio] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [selectedPresetEngine, setSelectedPresetEngine] = useState<string>('kokoro');
+  const [selectedPresetEngine, setSelectedPresetEngine] = useState<string>('');
   const [selectedPresetVoiceId, setSelectedPresetVoiceId] = useState<string>('');
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPlaying, playPause, cleanup: cleanupAudio } = useAudioPlayer();
@@ -163,6 +152,23 @@ export function ProfileForm() {
   const [profileEffectsChain, setProfileEffectsChain] = useState<EffectConfig[]>([]);
   const [effectsDirty, setEffectsDirty] = useState(false);
   const [defaultEngine, setDefaultEngine] = useState<string>('');
+
+  const engineMetadata = useEngineMetadata();
+  const allEngineOptions = engineMetadata.ttsEngines.map((e) => ({
+    value: e.engine,
+    label: e.display_name,
+  }));
+  const presetEngineOptions = engineMetadata.ttsEngines
+    .filter((e) => e.voice_mode === 'preset')
+    .map((e) => ({ value: e.engine, label: e.display_name }));
+
+  // Default the preset engine picker to the first preset engine once the
+  // catalog arrives — avoids a hardcoded engine name in this component.
+  useEffect(() => {
+    if (!selectedPresetEngine && presetEngineOptions.length > 0) {
+      setSelectedPresetEngine(presetEngineOptions[0].value);
+    }
+  }, [selectedPresetEngine, presetEngineOptions]);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(makeProfileSchema(t)),
@@ -291,8 +297,8 @@ export function ProfileForm() {
   const isSampleBasedProfile = isCreating
     ? voiceSource === 'clone'
     : editingProfile?.voice_type !== 'preset';
-  const availableDefaultEngines = DEFAULT_ENGINE_OPTIONS.filter(
-    (option) => !isSampleBasedProfile || !PRESET_ONLY_ENGINES.has(option.value),
+  const availableDefaultEngines = allEngineOptions.filter(
+    (option) => !isSampleBasedProfile || !engineMetadata.presetEngines.has(option.value),
   );
 
   // Show recording errors
@@ -898,10 +904,11 @@ export function ProfileForm() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="kokoro">Kokoro 82M</SelectItem>
-                                <SelectItem value="supertonic">Supertonic-3</SelectItem>
-                                <SelectItem value="kyutai_pocket">Kyutai Pocket TTS</SelectItem>
-                                <SelectItem value="qwen_custom_voice">Qwen CustomVoice</SelectItem>
+                                {presetEngineOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </FormItem>

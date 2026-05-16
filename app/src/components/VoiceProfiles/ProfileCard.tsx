@@ -14,17 +14,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { VoiceProfileResponse } from '@/lib/api/types';
+import { useEngineMetadata } from '@/lib/hooks/useEngineCatalog';
 import { useDeleteProfile, useExportProfile } from '@/lib/hooks/useProfiles';
 import { cn } from '@/lib/utils/cn';
 import { useUIStore } from '@/stores/uiStore';
-
-/** Human-readable display names for preset engine badges. */
-const ENGINE_DISPLAY_NAMES: Record<string, string> = {
-  kokoro: 'Kokoro',
-  supertonic: 'Supertonic',
-  kyutai_pocket: 'Kyutai',
-  qwen_custom_voice: 'CustomVoice',
-};
 
 interface ProfileCardProps {
   profile: VoiceProfileResponse;
@@ -41,6 +34,9 @@ export function ProfileCard({ profile, disabled }: ProfileCardProps) {
   const setProfileDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
   const selectedProfileId = useUIStore((state) => state.selectedProfileId);
   const setSelectedProfileId = useUIStore((state) => state.setSelectedProfileId);
+  const { ttsByEngine } = useEngineMetadata();
+  const presetEngineLabel =
+    ttsByEngine.get(profile.preset_engine ?? '')?.display_name ?? profile.preset_engine;
 
   const isSelected = selectedProfileId === profile.id;
 
@@ -117,7 +113,7 @@ export function ProfileCard({ profile, disabled }: ProfileCardProps) {
             </Badge>
             {profile.voice_type === 'preset' && (
               <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                {ENGINE_DISPLAY_NAMES[profile.preset_engine ?? ''] ?? profile.preset_engine}
+                {presetEngineLabel}
               </Badge>
             )}
             {profile.voice_type === 'designed' && (
