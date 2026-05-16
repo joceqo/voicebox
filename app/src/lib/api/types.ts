@@ -3,6 +3,43 @@ import type { LanguageCode } from '@/lib/constants/languages';
 
 export type VoiceType = 'cloned' | 'preset' | 'designed';
 
+// ── Engine catalog (GET /engines) ────────────────────────────────────
+// The desktop app derives its engine picker, preset/cloning sets,
+// language list, and display badges from this catalog at runtime.
+// Adding a new backend means one entry in the server-side registry —
+// no TypeScript file in this app needs to change.
+
+export type VoiceMode = 'preset' | 'cloning';
+
+export interface EngineModelInfo {
+  model_name: string;
+  display_name: string;
+  model_size: string;
+  size_mb: number;
+}
+
+export interface TTSEngineInfo {
+  engine: string;
+  display_name: string;
+  description: string;
+  voice_mode: VoiceMode;
+  english_only: boolean;
+  languages: string[];
+  models: EngineModelInfo[];
+}
+
+export interface LLMEngineInfo {
+  engine: string;
+  display_name: string;
+  description: string;
+  models: EngineModelInfo[];
+}
+
+export interface EngineCatalogResponse {
+  tts: TTSEngineInfo[];
+  llm: LLMEngineInfo[];
+}
+
 export interface VoiceProfileCreate {
   name: string;
   description?: string;
@@ -71,16 +108,8 @@ export interface GenerationRequest {
   language: LanguageCode;
   seed?: number;
   model_size?: '1.7B' | '0.6B' | '1B' | '3B';
-  engine?:
-    | 'qwen'
-    | 'qwen_custom_voice'
-    | 'luxtts'
-    | 'chatterbox'
-    | 'chatterbox_turbo'
-    | 'tada'
-    | 'kokoro'
-    | 'supertonic'
-    | 'kyutai_pocket';
+  /** Engine id — server registry authoritative; see GET /engines. */
+  engine?: string;
   instruct?: string;
   /** When true and the profile has a personality prompt, input text is rewritten in-character before TTS. */
   personality?: boolean;

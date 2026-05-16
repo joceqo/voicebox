@@ -3,13 +3,11 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useEngineMetadata } from '@/lib/hooks/useEngineCatalog';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useUIStore } from '@/stores/uiStore';
 import { ProfileCard } from './ProfileCard';
 import { ProfileForm } from './ProfileForm';
-
-/** Engines that use preset (built-in) voices instead of cloned profiles. */
-const PRESET_ENGINES = new Set(['kokoro', 'supertonic', 'kyutai_pocket', 'qwen_custom_voice']);
 
 export function ProfileList() {
   const { t } = useTranslation();
@@ -17,6 +15,7 @@ export function ProfileList() {
   const setDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
   const selectedEngine = useUIStore((state) => state.selectedEngine);
   const selectedProfileId = useUIStore((state) => state.selectedProfileId);
+  const { presetEngines } = useEngineMetadata();
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Scroll to the selected profile after engine/sort changes
@@ -55,7 +54,7 @@ export function ProfileList() {
   }
 
   const allProfiles = profiles || [];
-  const isPresetEngine = PRESET_ENGINES.has(selectedEngine);
+  const isPresetEngine = presetEngines.has(selectedEngine);
 
   /** Whether a profile is supported by the currently selected engine. */
   const isSupported = (p: (typeof allProfiles)[number]) =>

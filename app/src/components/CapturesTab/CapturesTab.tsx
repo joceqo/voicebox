@@ -267,10 +267,8 @@ export function CapturesTab() {
       // Preset profiles (Kokoro etc.) reject the qwen default — honor the
       // profile's stored engine preference. Cloned profiles without an
       // override fall through to whatever the backend picks.
-      const engine = voice.default_engine as
-        | 'qwen' | 'qwen_custom_voice' | 'luxtts' | 'chatterbox'
-        | 'chatterbox_turbo' | 'tada' | 'kokoro' | 'supertonic' | 'kyutai_pocket'
-        | undefined;
+      // Engine id is server-driven (see /engines registry); pass-through.
+      const engine = voice.default_engine as string | undefined;
       return apiClient.generateSpeech({
         profile_id: voice.id,
         text,

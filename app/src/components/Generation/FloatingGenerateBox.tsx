@@ -16,7 +16,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
-import { getLanguageOptionsForEngine, type LanguageCode } from '@/lib/constants/languages';
+import { ALL_LANGUAGES, type LanguageCode } from '@/lib/constants/languages';
+import {
+  getLanguageOptionsForEngineFromCatalog,
+  useEngineMetadata,
+} from '@/lib/hooks/useEngineCatalog';
 import { useGenerationForm } from '@/lib/hooks/useGenerationForm';
 import { useProfile, useProfiles } from '@/lib/hooks/useProfiles';
 import { useStory } from '@/lib/hooks/useStories';
@@ -77,6 +81,8 @@ export function FloatingGenerateBox({
 
   // Calculate if track editor is visible (on stories route with items)
   const hasTrackEditor = isStoriesRoute && currentStory && currentStory.items.length > 0;
+
+  const engineMetadata = useEngineMetadata();
 
   const { form, handleSubmit, isPending } = useGenerationForm({
     onSuccess: async (generationId) => {
@@ -144,16 +150,6 @@ export function FloatingGenerateBox({
   }, [watchedEngine, setSelectedEngine]);
 
   // Sync generation form language, engine, and effects with selected profile
-  type EngineValue =
-    | 'qwen'
-    | 'luxtts'
-    | 'chatterbox'
-    | 'chatterbox_turbo'
-    | 'tada'
-    | 'kokoro'
-    | 'supertonic'
-    | 'kyutai_pocket'
-    | 'qwen_custom_voice';
   useEffect(() => {
     if (selectedProfile?.language) {
       form.setValue('language', selectedProfile.language as LanguageCode);
@@ -161,12 +157,11 @@ export function FloatingGenerateBox({
     // Auto-switch engine to match the profile
     const engine = selectedProfile?.default_engine ?? selectedProfile?.preset_engine;
     if (engine) {
-      form.setValue('engine', engine as EngineValue);
+      form.setValue('engine', engine);
     } else if (selectedProfile && selectedProfile.voice_type !== 'preset') {
       // Cloned/designed profile with no default — ensure a compatible (non-preset) engine
       const currentEngine = form.getValues('engine');
-      const presetEngines = new Set(['kokoro', 'supertonic', 'kyutai_pocket', 'qwen_custom_voice']);
-      if (currentEngine && presetEngines.has(currentEngine)) {
+      if (currentEngine && engineMetadata.presetEngines.has(currentEngine)) {
         form.setValue('engine', 'qwen');
       }
     }
@@ -573,8 +568,10 @@ export function FloatingGenerateBox({
                     control={form.control}
                     name="language"
                     render={({ field }) => {
-                      const engineLangs = getLanguageOptionsForEngine(
+                      const engineLangs = getLanguageOptionsForEngineFromCatalog(
+                        engineMetadata,
                         form.watch('engine') || 'qwen',
+                        ALL_LANGUAGES,
                       );
                       return (
                         <FormItem className="flex-1 space-y-0">

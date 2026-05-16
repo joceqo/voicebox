@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { FormControl } from '@/components/ui/form';
 import {
@@ -8,106 +8,78 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { VoiceProfileResponse } from '@/lib/api/types';
-import { getLanguageOptionsForEngine } from '@/lib/constants/languages';
+import type { TTSEngineInfo, VoiceProfileResponse } from '@/lib/api/types';
+import { ALL_LANGUAGES } from '@/lib/constants/languages';
+import {
+  type EngineMetadata,
+  getLanguageOptionsForEngineFromCatalog,
+  useEngineMetadata,
+} from '@/lib/hooks/useEngineCatalog';
 import type { GenerationFormValues } from '@/lib/hooks/useGenerationForm';
 
 /**
- * Engine/model options and their display metadata.
- * Adding a new engine means adding one entry here.
+ * Engine picker options derive from the server's /engines catalog at
+ * runtime. Adding a new backend on the server appears here automatically
+ * — no edit needed in this file.
  */
-const ENGINE_OPTIONS = [
-  { value: 'qwen:1.7B', label: 'Qwen3-TTS 1.7B', engine: 'qwen' },
-  { value: 'qwen:0.6B', label: 'Qwen3-TTS 0.6B', engine: 'qwen' },
-  { value: 'qwen_custom_voice:1.7B', label: 'Qwen CustomVoice 1.7B', engine: 'qwen_custom_voice' },
-  { value: 'qwen_custom_voice:0.6B', label: 'Qwen CustomVoice 0.6B', engine: 'qwen_custom_voice' },
-  { value: 'luxtts', label: 'LuxTTS', engine: 'luxtts' },
-  { value: 'chatterbox', label: 'Chatterbox', engine: 'chatterbox' },
-  { value: 'chatterbox_turbo', label: 'Chatterbox Turbo', engine: 'chatterbox_turbo' },
-  { value: 'tada:1B', label: 'TADA 1B', engine: 'tada' },
-  { value: 'tada:3B', label: 'TADA 3B Multilingual', engine: 'tada' },
-  { value: 'kokoro', label: 'Kokoro 82M', engine: 'kokoro' },
-  { value: 'supertonic', label: 'Supertonic-3', engine: 'supertonic' },
-  { value: 'kyutai_pocket', label: 'Kyutai Pocket TTS', engine: 'kyutai_pocket' },
-] as const;
-
-const ENGINE_DESCRIPTIONS: Record<string, string> = {
-  qwen: 'Multi-language, two sizes',
-  qwen_custom_voice: '9 preset voices, instruct control',
-  luxtts: 'Fast, English-focused',
-  chatterbox: '23 languages, incl. Hebrew',
-  chatterbox_turbo: 'English, [laugh] [cough] tags',
-  tada: 'HumeAI, 700s+ coherent audio',
-  kokoro: '82M params, CPU realtime, 8 langs',
-  supertonic: 'ONNX, CPU, 31 langs, 10 preset voices',
-  kyutai_pocket: 'PyTorch CPU, 6 langs, 26 preset voices, ~10x realtime',
-};
-
-/** Engines that only support English and should force language to 'en' on select. */
-const ENGLISH_ONLY_ENGINES = new Set(['luxtts', 'chatterbox_turbo']);
-
-/** Engines that support cloned (reference audio) profiles. */
-const CLONING_ENGINES = new Set(['qwen', 'luxtts', 'chatterbox', 'chatterbox_turbo', 'tada']);
-
-function getAvailableOptions(selectedProfile?: VoiceProfileResponse | null) {
-  if (!selectedProfile) return ENGINE_OPTIONS;
-  return ENGINE_OPTIONS.filter((opt) => isProfileCompatibleWithEngine(selectedProfile, opt.engine));
+interface EngineOption {
+  value: string; // either "<engine>" (single-model) or "<engine>:<modelSize>"
+  label: string;
+  engine: string;
 }
 
-function getSelectValue(engine: string, modelSize?: string): string {
-  if (engine === 'qwen') return `qwen:${modelSize || '1.7B'}`;
-  if (engine === 'qwen_custom_voice') return `qwen_custom_voice:${modelSize || '1.7B'}`;
-  if (engine === 'tada') return `tada:${modelSize || '1B'}`;
+function buildEngineOptions(ttsEngines: TTSEngineInfo[]): EngineOption[] {
+  return ttsEngines.flatMap((e) => {
+    if (e.models.length > 1) {
+      return e.models.map((m) => ({
+        value: `${e.engine}:${m.model_size}`,
+        label: m.display_name,
+        engine: e.engine,
+      }));
+    }
+    return [{ value: e.engine, label: e.display_name, engine: e.engine }];
+  });
+}
+
+function getSelectValue(
+  engine: string,
+  modelSize: string | undefined,
+  ttsByEngine: Map<string, TTSEngineInfo>,
+): string {
+  const info = ttsByEngine.get(engine);
+  if (!info) return engine;
+  if (info.models.length > 1) {
+    const size = modelSize ?? info.models[0]?.model_size;
+    return `${engine}:${size}`;
+  }
   return engine;
 }
 
-export function applyEngineSelection(form: UseFormReturn<GenerationFormValues>, value: string) {
-  if (value.startsWith('qwen_custom_voice:')) {
-    const [, modelSize] = value.split(':');
-    form.setValue('engine', 'qwen_custom_voice');
-    form.setValue('modelSize', modelSize as '1.7B' | '0.6B');
-    const currentLang = form.getValues('language');
-    const available = getLanguageOptionsForEngine('qwen_custom_voice');
-    if (!available.some((l) => l.value === currentLang)) {
-      form.setValue('language', available[0]?.value ?? 'en');
-    }
-  } else if (value.startsWith('qwen:')) {
-    const [, modelSize] = value.split(':');
-    form.setValue('engine', 'qwen');
-    form.setValue('modelSize', modelSize as '1.7B' | '0.6B');
-    // Validate language is supported by Qwen
-    const currentLang = form.getValues('language');
-    const available = getLanguageOptionsForEngine('qwen');
-    if (!available.some((l) => l.value === currentLang)) {
-      form.setValue('language', available[0]?.value ?? 'en');
-    }
-  } else if (value.startsWith('tada:')) {
-    const [, modelSize] = value.split(':');
-    form.setValue('engine', 'tada');
-    form.setValue('modelSize', modelSize as '1B' | '3B');
-    // TADA 1B is English-only; 3B is multilingual
-    if (modelSize === '1B') {
-      form.setValue('language', 'en');
-    } else {
-      const currentLang = form.getValues('language');
-      const available = getLanguageOptionsForEngine('tada');
-      if (!available.some((l) => l.value === currentLang)) {
-        form.setValue('language', available[0]?.value ?? 'en');
-      }
-    }
+export function applyEngineSelection(
+  form: UseFormReturn<GenerationFormValues>,
+  value: string,
+  metadata: EngineMetadata,
+) {
+  const [engineRaw, modelSize] = value.includes(':') ? value.split(':') : [value, undefined];
+  const engine = engineRaw;
+  const info = metadata.ttsByEngine.get(engine);
+
+  form.setValue('engine', engine as GenerationFormValues['engine']);
+
+  if (info && info.models.length > 1 && modelSize) {
+    form.setValue('modelSize', modelSize as GenerationFormValues['modelSize']);
   } else {
-    form.setValue('engine', value as GenerationFormValues['engine']);
-    form.setValue('modelSize', undefined as unknown as '1.7B' | '0.6B');
-    if (ENGLISH_ONLY_ENGINES.has(value)) {
-      form.setValue('language', 'en');
-    } else {
-      // If current language isn't supported by the new engine, reset to first available
-      const currentLang = form.getValues('language');
-      const available = getLanguageOptionsForEngine(value);
-      if (!available.some((l) => l.value === currentLang)) {
-        form.setValue('language', available[0]?.value ?? 'en');
-      }
-    }
+    form.setValue('modelSize', undefined as GenerationFormValues['modelSize']);
+  }
+
+  if (info?.english_only) {
+    form.setValue('language', 'en');
+    return;
+  }
+  const currentLang = form.getValues('language');
+  const available = getLanguageOptionsForEngineFromCatalog(metadata, engine, ALL_LANGUAGES);
+  if (!available.some((l) => l.value === currentLang)) {
+    form.setValue('language', (available[0]?.value ?? 'en') as GenerationFormValues['language']);
   }
 }
 
@@ -118,18 +90,27 @@ interface EngineModelSelectorProps {
 }
 
 export function EngineModelSelector({ form, compact, selectedProfile }: EngineModelSelectorProps) {
+  const metadata = useEngineMetadata();
+  const { ttsEngines, ttsByEngine } = metadata;
+
+  const engineOptions = useMemo(() => buildEngineOptions(ttsEngines), [ttsEngines]);
+
   const engine = form.watch('engine') || 'qwen';
   const modelSize = form.watch('modelSize');
-  const selectValue = getSelectValue(engine, modelSize);
-  const availableOptions = getAvailableOptions(selectedProfile);
+  const selectValue = getSelectValue(engine, modelSize, ttsByEngine);
+
+  const availableOptions = useMemo(() => {
+    if (!selectedProfile) return engineOptions;
+    return engineOptions.filter((opt) => isProfileCompatibleWithEngine(selectedProfile, opt.engine, metadata));
+  }, [engineOptions, selectedProfile, metadata]);
 
   const currentEngineAvailable = availableOptions.some((opt) => opt.value === selectValue);
 
   useEffect(() => {
     if (!currentEngineAvailable && availableOptions.length > 0) {
-      applyEngineSelection(form, availableOptions[0].value);
+      applyEngineSelection(form, availableOptions[0].value, metadata);
     }
-  }, [availableOptions, currentEngineAvailable, form]);
+  }, [availableOptions, currentEngineAvailable, form, metadata]);
 
   const itemClass = compact ? 'text-xs text-muted-foreground' : undefined;
   const triggerClass = compact
@@ -137,7 +118,7 @@ export function EngineModelSelector({ form, compact, selectedProfile }: EngineMo
     : undefined;
 
   return (
-    <Select value={selectValue} onValueChange={(v) => applyEngineSelection(form, v)}>
+    <Select value={selectValue} onValueChange={(v) => applyEngineSelection(form, v, metadata)}>
       <FormControl>
         <SelectTrigger className={triggerClass}>
           <SelectValue />
@@ -154,21 +135,23 @@ export function EngineModelSelector({ form, compact, selectedProfile }: EngineMo
   );
 }
 
-/** Returns a human-readable description for the currently selected engine. */
-export function getEngineDescription(engine: string): string {
-  return ENGINE_DESCRIPTIONS[engine] ?? '';
+/** Human-readable description for the currently selected engine — pulled from the catalog. */
+export function useEngineDescription(engine: string): string {
+  const { ttsByEngine } = useEngineMetadata();
+  return ttsByEngine.get(engine)?.description ?? '';
 }
 
 /**
- * Check if a profile is compatible with the currently selected engine.
- * Useful for UI hints.
+ * Profile compatibility check. Preset profiles bind to one engine; cloned
+ * profiles only work with engines that support audio cloning.
  */
 export function isProfileCompatibleWithEngine(
   profile: VoiceProfileResponse,
   engine: string,
+  metadata: EngineMetadata,
 ): boolean {
   const voiceType = profile.voice_type || 'cloned';
   if (voiceType === 'preset') return profile.preset_engine === engine;
-  if (voiceType === 'cloned') return CLONING_ENGINES.has(engine);
+  if (voiceType === 'cloned') return metadata.cloningEngines.has(engine);
   return true; // designed — future
 }

@@ -6,6 +6,7 @@ import type {
   AvailableEffectsResponse,
   CudaStatus,
   EffectConfig,
+  EngineCatalogResponse,
   EffectPresetCreate,
   EffectPresetResponse,
   GenerationRequest,
@@ -116,6 +117,10 @@ class ApiClient {
 
   async listPresetVoices(engine: string): Promise<{ engine: string; voices: PresetVoice[] }> {
     return this.request<{ engine: string; voices: PresetVoice[] }>(`/profiles/presets/${engine}`);
+  }
+
+  async listEngines(): Promise<EngineCatalogResponse> {
+    return this.request<EngineCatalogResponse>('/engines');
   }
 
   async updateProfile(profileId: string, data: VoiceProfileCreate): Promise<VoiceProfileResponse> {
