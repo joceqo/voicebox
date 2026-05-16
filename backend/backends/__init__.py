@@ -205,23 +205,9 @@ _stt_backend: Optional[STTBackend] = None
 _llm_backends: dict[str, LLMBackend] = {}
 _llm_backends_lock = threading.Lock()
 
-# Supported TTS engines — keyed by engine name, value is the backend class import path.
-# The factory function uses this for the if/elif chain; the model configs live on the backend classes.
-TTS_ENGINES = {
-    "qwen": "Qwen TTS",
-    "qwen_custom_voice": "Qwen CustomVoice",
-    "luxtts": "LuxTTS",
-    "chatterbox": "Chatterbox TTS",
-    "chatterbox_turbo": "Chatterbox Turbo",
-    "tada": "TADA",
-    "kokoro": "Kokoro",
-    "supertonic": "Supertonic-3",
-    "kyutai_pocket": "Kyutai Pocket TTS",
-}
-
-LLM_ENGINES = {
-    "qwen_llm": "Qwen3 LLM",
-}
+# TTS_ENGINES, LLM_ENGINES, _TTS_BACKEND_FACTORIES, _LLM_BACKEND_FACTORIES
+# are derived later in this module from _TTS_REGISTRY / _LLM_REGISTRY (the
+# single source of truth). Adding a new engine = adding one entry there.
 
 
 def _get_qwen_model_configs() -> list[ModelConfig]:
@@ -284,11 +270,7 @@ def _get_qwen_custom_voice_configs() -> list[ModelConfig]:
     ]
 
 
-def _get_non_qwen_tts_configs() -> list[ModelConfig]:
-    """Return model configs for non-Qwen TTS engines.
-
-    These are static — no backend-type branching needed.
-    """
+def _get_luxtts_configs() -> list[ModelConfig]:
     return [
         ModelConfig(
             model_name="luxtts",
@@ -298,6 +280,11 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
             size_mb=300,
             languages=["en"],
         ),
+    ]
+
+
+def _get_chatterbox_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="chatterbox-tts",
             display_name="Chatterbox TTS (Multilingual)",
@@ -306,31 +293,16 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
             size_mb=3200,
             needs_trim=True,
             languages=[
-                "zh",
-                "en",
-                "ja",
-                "ko",
-                "de",
-                "fr",
-                "ru",
-                "pt",
-                "es",
-                "it",
-                "he",
-                "ar",
-                "da",
-                "el",
-                "fi",
-                "hi",
-                "ms",
-                "nl",
-                "no",
-                "pl",
-                "sv",
-                "sw",
-                "tr",
+                "zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it",
+                "he", "ar", "da", "el", "fi", "hi", "ms", "nl", "no", "pl",
+                "sv", "sw", "tr",
             ],
         ),
+    ]
+
+
+def _get_chatterbox_turbo_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="chatterbox-turbo",
             display_name="Chatterbox Turbo (English, Tags)",
@@ -340,6 +312,11 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
             needs_trim=True,
             languages=["en"],
         ),
+    ]
+
+
+def _get_tada_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="tada-1b",
             display_name="TADA 1B (English)",
@@ -358,6 +335,11 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
             size_mb=8000,
             languages=["en", "ar", "zh", "de", "es", "fr", "it", "ja", "pl", "pt"],
         ),
+    ]
+
+
+def _get_kokoro_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="kokoro",
             display_name="Kokoro 82M",
@@ -366,6 +348,11 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
             size_mb=350,
             languages=["en", "es", "fr", "hi", "it", "pt", "ja", "zh"],
         ),
+    ]
+
+
+def _get_supertonic_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="supertonic-3",
             display_name="Supertonic-3 (ONNX, CPU, 31 langs)",
@@ -378,6 +365,11 @@ def _get_non_qwen_tts_configs() -> list[ModelConfig]:
                 "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi",
             ],
         ),
+    ]
+
+
+def _get_kyutai_pocket_configs() -> list[ModelConfig]:
+    return [
         ModelConfig(
             model_name="kyutai-pocket-tts",
             display_name="Kyutai Pocket TTS (CPU, 6 langs, 26 preset voices)",
@@ -483,23 +475,29 @@ def _get_qwen_llm_configs() -> list[ModelConfig]:
 
 def get_all_model_configs() -> list[ModelConfig]:
     """Return the full list of model configs (TTS + STT + LLM)."""
-    return (
-        _get_qwen_model_configs()
-        + _get_qwen_custom_voice_configs()
-        + _get_non_qwen_tts_configs()
-        + _get_whisper_configs()
-        + _get_qwen_llm_configs()
-    )
+    configs: list[ModelConfig] = []
+    for entry in _TTS_REGISTRY:
+        configs.extend(entry.model_configs())
+    configs.extend(_get_whisper_configs())
+    for entry in _LLM_REGISTRY:
+        configs.extend(entry.model_configs())
+    return configs
 
 
 def get_tts_model_configs() -> list[ModelConfig]:
     """Return only TTS model configs."""
-    return _get_qwen_model_configs() + _get_qwen_custom_voice_configs() + _get_non_qwen_tts_configs()
+    configs: list[ModelConfig] = []
+    for entry in _TTS_REGISTRY:
+        configs.extend(entry.model_configs())
+    return configs
 
 
 def get_llm_model_configs() -> list[ModelConfig]:
     """Return only LLM model configs."""
-    return _get_qwen_llm_configs()
+    configs: list[ModelConfig] = []
+    for entry in _LLM_REGISTRY:
+        configs.extend(entry.model_configs())
+    return configs
 
 
 def get_stt_model_configs() -> list[ModelConfig]:
@@ -674,10 +672,11 @@ def get_tts_backend() -> TTSBackend:
     return get_tts_backend_for_engine("qwen")
 
 
-# ── TTS backend factory registry ──────────────────────────────────────
-# Each entry maps an engine id to a factory that lazy-imports the backend
-# module and returns a fresh instance. Adding a new engine = adding one
-# factory function and one dict entry — no other call sites change.
+# ── Engine registry (source of truth) ─────────────────────────────────
+# Each entry binds an engine id to its display name, backend factory, and
+# model-config provider. TTS_ENGINES, LLM_ENGINES, _TTS_BACKEND_FACTORIES,
+# and _LLM_BACKEND_FACTORIES are derived views defined below the registry.
+# Adding a new engine = adding one entry to _TTS_REGISTRY or _LLM_REGISTRY.
 
 
 def _make_qwen_tts_backend() -> "TTSBackend":
@@ -739,17 +738,56 @@ def _make_qwen_custom_voice_backend() -> "TTSBackend":
     return QwenCustomVoiceBackend()
 
 
-_TTS_BACKEND_FACTORIES: dict[str, Callable[[], "TTSBackend"]] = {
-    "qwen": _make_qwen_tts_backend,
-    "qwen_custom_voice": _make_qwen_custom_voice_backend,
-    "luxtts": _make_luxtts_backend,
-    "chatterbox": _make_chatterbox_backend,
-    "chatterbox_turbo": _make_chatterbox_turbo_backend,
-    "tada": _make_tada_backend,
-    "kokoro": _make_kokoro_backend,
-    "supertonic": _make_supertonic_backend,
-    "kyutai_pocket": _make_kyutai_pocket_backend,
-}
+def _make_qwen_llm_backend() -> "LLMBackend":
+    backend_type = get_backend_type()
+    if backend_type == "mlx":
+        from .qwen_llm_backend import MLXQwenLLMBackend
+
+        return MLXQwenLLMBackend()
+    from .qwen_llm_backend import PyTorchQwenLLMBackend
+
+    return PyTorchQwenLLMBackend()
+
+
+@dataclass(frozen=True)
+class TTSEngineEntry:
+    engine: str
+    display_name: str
+    factory: Callable[[], "TTSBackend"]
+    model_configs: Callable[[], list[ModelConfig]]
+
+
+@dataclass(frozen=True)
+class LLMEngineEntry:
+    engine: str
+    display_name: str
+    factory: Callable[[], "LLMBackend"]
+    model_configs: Callable[[], list[ModelConfig]]
+
+
+_TTS_REGISTRY: list[TTSEngineEntry] = [
+    TTSEngineEntry("qwen", "Qwen TTS", _make_qwen_tts_backend, _get_qwen_model_configs),
+    TTSEngineEntry("qwen_custom_voice", "Qwen CustomVoice", _make_qwen_custom_voice_backend, _get_qwen_custom_voice_configs),
+    TTSEngineEntry("luxtts", "LuxTTS", _make_luxtts_backend, _get_luxtts_configs),
+    TTSEngineEntry("chatterbox", "Chatterbox TTS", _make_chatterbox_backend, _get_chatterbox_configs),
+    TTSEngineEntry("chatterbox_turbo", "Chatterbox Turbo", _make_chatterbox_turbo_backend, _get_chatterbox_turbo_configs),
+    TTSEngineEntry("tada", "TADA", _make_tada_backend, _get_tada_configs),
+    TTSEngineEntry("kokoro", "Kokoro", _make_kokoro_backend, _get_kokoro_configs),
+    TTSEngineEntry("supertonic", "Supertonic-3", _make_supertonic_backend, _get_supertonic_configs),
+    TTSEngineEntry("kyutai_pocket", "Kyutai Pocket TTS", _make_kyutai_pocket_backend, _get_kyutai_pocket_configs),
+]
+
+
+_LLM_REGISTRY: list[LLMEngineEntry] = [
+    LLMEngineEntry("qwen_llm", "Qwen3 LLM", _make_qwen_llm_backend, _get_qwen_llm_configs),
+]
+
+
+# Derived views — kept for backwards compat with module-level imports.
+TTS_ENGINES: dict[str, str] = {e.engine: e.display_name for e in _TTS_REGISTRY}
+LLM_ENGINES: dict[str, str] = {e.engine: e.display_name for e in _LLM_REGISTRY}
+_TTS_BACKEND_FACTORIES: dict[str, Callable[[], "TTSBackend"]] = {e.engine: e.factory for e in _TTS_REGISTRY}
+_LLM_BACKEND_FACTORIES: dict[str, Callable[[], "LLMBackend"]] = {e.engine: e.factory for e in _LLM_REGISTRY}
 
 
 def get_tts_backend_for_engine(engine: str) -> TTSBackend:
@@ -825,19 +863,13 @@ def get_llm_backend_for_engine(engine: str) -> LLMBackend:
         if engine in _llm_backends:
             return _llm_backends[engine]
 
-        if engine == "qwen_llm":
-            backend_type = get_backend_type()
-            if backend_type == "mlx":
-                from .qwen_llm_backend import MLXQwenLLMBackend
+        factory = _LLM_BACKEND_FACTORIES.get(engine)
+        if factory is None:
+            raise ValueError(
+                f"Unknown LLM engine: {engine}. Supported: {list(LLM_ENGINES.keys())}"
+            )
 
-                backend = MLXQwenLLMBackend()
-            else:
-                from .qwen_llm_backend import PyTorchQwenLLMBackend
-
-                backend = PyTorchQwenLLMBackend()
-        else:
-            raise ValueError(f"Unknown LLM engine: {engine}. Supported: {list(LLM_ENGINES.keys())}")
-
+        backend = factory()
         _llm_backends[engine] = backend
         return backend
 
