@@ -14,7 +14,7 @@ from ..utils import hf_offline_patch  # noqa: F401
 
 import threading
 from dataclasses import dataclass, field
-from typing import Callable, Protocol, Optional, Tuple, List
+from typing import Callable, Literal, Protocol, Optional, Tuple, List
 from typing_extensions import runtime_checkable
 import numpy as np
 
@@ -749,12 +749,20 @@ def _make_qwen_llm_backend() -> "LLMBackend":
     return PyTorchQwenLLMBackend()
 
 
+VoiceMode = Literal["preset", "cloning"]
+
+
 @dataclass(frozen=True)
 class TTSEngineEntry:
     engine: str
     display_name: str
     factory: Callable[[], "TTSBackend"]
     model_configs: Callable[[], list[ModelConfig]]
+    description: str = ""
+    # "preset" = ships its own voice catalog, can't clone arbitrary audio.
+    # "cloning" = accepts a user reference audio sample.
+    voice_mode: VoiceMode = "cloning"
+    english_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -763,23 +771,95 @@ class LLMEngineEntry:
     display_name: str
     factory: Callable[[], "LLMBackend"]
     model_configs: Callable[[], list[ModelConfig]]
+    description: str = ""
 
 
 _TTS_REGISTRY: list[TTSEngineEntry] = [
-    TTSEngineEntry("qwen", "Qwen TTS", _make_qwen_tts_backend, _get_qwen_model_configs),
-    TTSEngineEntry("qwen_custom_voice", "Qwen CustomVoice", _make_qwen_custom_voice_backend, _get_qwen_custom_voice_configs),
-    TTSEngineEntry("luxtts", "LuxTTS", _make_luxtts_backend, _get_luxtts_configs),
-    TTSEngineEntry("chatterbox", "Chatterbox TTS", _make_chatterbox_backend, _get_chatterbox_configs),
-    TTSEngineEntry("chatterbox_turbo", "Chatterbox Turbo", _make_chatterbox_turbo_backend, _get_chatterbox_turbo_configs),
-    TTSEngineEntry("tada", "TADA", _make_tada_backend, _get_tada_configs),
-    TTSEngineEntry("kokoro", "Kokoro", _make_kokoro_backend, _get_kokoro_configs),
-    TTSEngineEntry("supertonic", "Supertonic-3", _make_supertonic_backend, _get_supertonic_configs),
-    TTSEngineEntry("kyutai_pocket", "Kyutai Pocket TTS", _make_kyutai_pocket_backend, _get_kyutai_pocket_configs),
+    TTSEngineEntry(
+        engine="qwen",
+        display_name="Qwen TTS",
+        factory=_make_qwen_tts_backend,
+        model_configs=_get_qwen_model_configs,
+        description="Multi-language, two sizes",
+        voice_mode="cloning",
+    ),
+    TTSEngineEntry(
+        engine="qwen_custom_voice",
+        display_name="Qwen CustomVoice",
+        factory=_make_qwen_custom_voice_backend,
+        model_configs=_get_qwen_custom_voice_configs,
+        description="9 preset voices, instruct control",
+        voice_mode="preset",
+    ),
+    TTSEngineEntry(
+        engine="luxtts",
+        display_name="LuxTTS",
+        factory=_make_luxtts_backend,
+        model_configs=_get_luxtts_configs,
+        description="Fast, English-focused",
+        voice_mode="cloning",
+        english_only=True,
+    ),
+    TTSEngineEntry(
+        engine="chatterbox",
+        display_name="Chatterbox TTS",
+        factory=_make_chatterbox_backend,
+        model_configs=_get_chatterbox_configs,
+        description="23 languages, incl. Hebrew",
+        voice_mode="cloning",
+    ),
+    TTSEngineEntry(
+        engine="chatterbox_turbo",
+        display_name="Chatterbox Turbo",
+        factory=_make_chatterbox_turbo_backend,
+        model_configs=_get_chatterbox_turbo_configs,
+        description="English, [laugh] [cough] tags",
+        voice_mode="cloning",
+        english_only=True,
+    ),
+    TTSEngineEntry(
+        engine="tada",
+        display_name="TADA",
+        factory=_make_tada_backend,
+        model_configs=_get_tada_configs,
+        description="HumeAI, 700s+ coherent audio",
+        voice_mode="cloning",
+    ),
+    TTSEngineEntry(
+        engine="kokoro",
+        display_name="Kokoro",
+        factory=_make_kokoro_backend,
+        model_configs=_get_kokoro_configs,
+        description="82M params, CPU realtime, 8 langs",
+        voice_mode="preset",
+    ),
+    TTSEngineEntry(
+        engine="supertonic",
+        display_name="Supertonic-3",
+        factory=_make_supertonic_backend,
+        model_configs=_get_supertonic_configs,
+        description="ONNX, CPU, 31 langs, 10 preset voices",
+        voice_mode="preset",
+    ),
+    TTSEngineEntry(
+        engine="kyutai_pocket",
+        display_name="Kyutai Pocket TTS",
+        factory=_make_kyutai_pocket_backend,
+        model_configs=_get_kyutai_pocket_configs,
+        description="PyTorch CPU, 6 langs, 26 preset voices, ~10x realtime",
+        voice_mode="preset",
+    ),
 ]
 
 
 _LLM_REGISTRY: list[LLMEngineEntry] = [
-    LLMEngineEntry("qwen_llm", "Qwen3 LLM", _make_qwen_llm_backend, _get_qwen_llm_configs),
+    LLMEngineEntry(
+        engine="qwen_llm",
+        display_name="Qwen3 LLM",
+        factory=_make_qwen_llm_backend,
+        model_configs=_get_qwen_llm_configs,
+        description="Qwen3 instruct, used for refinement and personalities",
+    ),
 ]
 
 
