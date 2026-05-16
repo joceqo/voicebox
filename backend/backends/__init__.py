@@ -14,7 +14,7 @@ from ..utils import hf_offline_patch  # noqa: F401
 
 import threading
 from dataclasses import dataclass, field
-from typing import Protocol, Optional, Tuple, List
+from typing import Callable, Protocol, Optional, Tuple, List
 from typing_extensions import runtime_checkable
 import numpy as np
 
@@ -674,6 +674,84 @@ def get_tts_backend() -> TTSBackend:
     return get_tts_backend_for_engine("qwen")
 
 
+# ── TTS backend factory registry ──────────────────────────────────────
+# Each entry maps an engine id to a factory that lazy-imports the backend
+# module and returns a fresh instance. Adding a new engine = adding one
+# factory function and one dict entry — no other call sites change.
+
+
+def _make_qwen_tts_backend() -> "TTSBackend":
+    backend_type = get_backend_type()
+    if backend_type == "mlx":
+        from .mlx_backend import MLXTTSBackend
+
+        return MLXTTSBackend()
+    from .pytorch_backend import PyTorchTTSBackend
+
+    return PyTorchTTSBackend()
+
+
+def _make_luxtts_backend() -> "TTSBackend":
+    from .luxtts_backend import LuxTTSBackend
+
+    return LuxTTSBackend()
+
+
+def _make_chatterbox_backend() -> "TTSBackend":
+    from .chatterbox_backend import ChatterboxTTSBackend
+
+    return ChatterboxTTSBackend()
+
+
+def _make_chatterbox_turbo_backend() -> "TTSBackend":
+    from .chatterbox_turbo_backend import ChatterboxTurboTTSBackend
+
+    return ChatterboxTurboTTSBackend()
+
+
+def _make_tada_backend() -> "TTSBackend":
+    from .hume_backend import HumeTadaBackend
+
+    return HumeTadaBackend()
+
+
+def _make_kokoro_backend() -> "TTSBackend":
+    from .kokoro_backend import KokoroTTSBackend
+
+    return KokoroTTSBackend()
+
+
+def _make_supertonic_backend() -> "TTSBackend":
+    from .supertonic_backend import SupertonicTTSBackend
+
+    return SupertonicTTSBackend()
+
+
+def _make_kyutai_pocket_backend() -> "TTSBackend":
+    from .kyutai_pocket_backend import KyutaiPocketTTSBackend
+
+    return KyutaiPocketTTSBackend()
+
+
+def _make_qwen_custom_voice_backend() -> "TTSBackend":
+    from .qwen_custom_voice_backend import QwenCustomVoiceBackend
+
+    return QwenCustomVoiceBackend()
+
+
+_TTS_BACKEND_FACTORIES: dict[str, Callable[[], "TTSBackend"]] = {
+    "qwen": _make_qwen_tts_backend,
+    "qwen_custom_voice": _make_qwen_custom_voice_backend,
+    "luxtts": _make_luxtts_backend,
+    "chatterbox": _make_chatterbox_backend,
+    "chatterbox_turbo": _make_chatterbox_turbo_backend,
+    "tada": _make_tada_backend,
+    "kokoro": _make_kokoro_backend,
+    "supertonic": _make_supertonic_backend,
+    "kyutai_pocket": _make_kyutai_pocket_backend,
+}
+
+
 def get_tts_backend_for_engine(engine: str) -> TTSBackend:
     """
     Get or create a TTS backend for the given engine.
@@ -696,51 +774,13 @@ def get_tts_backend_for_engine(engine: str) -> TTSBackend:
         if engine in _tts_backends:
             return _tts_backends[engine]
 
-        if engine == "qwen":
-            backend_type = get_backend_type()
-            if backend_type == "mlx":
-                from .mlx_backend import MLXTTSBackend
+        factory = _TTS_BACKEND_FACTORIES.get(engine)
+        if factory is None:
+            raise ValueError(
+                f"Unknown TTS engine: {engine}. Supported: {list(TTS_ENGINES.keys())}"
+            )
 
-                backend = MLXTTSBackend()
-            else:
-                from .pytorch_backend import PyTorchTTSBackend
-
-                backend = PyTorchTTSBackend()
-        elif engine == "luxtts":
-            from .luxtts_backend import LuxTTSBackend
-
-            backend = LuxTTSBackend()
-        elif engine == "chatterbox":
-            from .chatterbox_backend import ChatterboxTTSBackend
-
-            backend = ChatterboxTTSBackend()
-        elif engine == "chatterbox_turbo":
-            from .chatterbox_turbo_backend import ChatterboxTurboTTSBackend
-
-            backend = ChatterboxTurboTTSBackend()
-        elif engine == "tada":
-            from .hume_backend import HumeTadaBackend
-
-            backend = HumeTadaBackend()
-        elif engine == "kokoro":
-            from .kokoro_backend import KokoroTTSBackend
-
-            backend = KokoroTTSBackend()
-        elif engine == "supertonic":
-            from .supertonic_backend import SupertonicTTSBackend
-
-            backend = SupertonicTTSBackend()
-        elif engine == "kyutai_pocket":
-            from .kyutai_pocket_backend import KyutaiPocketTTSBackend
-
-            backend = KyutaiPocketTTSBackend()
-        elif engine == "qwen_custom_voice":
-            from .qwen_custom_voice_backend import QwenCustomVoiceBackend
-
-            backend = QwenCustomVoiceBackend()
-        else:
-            raise ValueError(f"Unknown TTS engine: {engine}. Supported: {list(TTS_ENGINES.keys())}")
-
+        backend = factory()
         _tts_backends[engine] = backend
         return backend
 
