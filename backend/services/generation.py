@@ -242,6 +242,73 @@ def _save_retry(
     return config.to_storage_path(audio_path)
 
 
+async def quick_generate_sync(
+    *,
+    engine: str,
+    voice_id: str,
+    text: str,
+    language: str = "en",
+    model_size: Optional[str] = None,
+    seed: Optional[int] = None,
+    instruct: Optional[str] = None,
+    normalize: bool = True,
+    max_chunk_chars: Optional[int] = None,
+    crossfade_ms: Optional[int] = None,
+) -> bytes:
+    """
+    Synthesize a one-shot TTS clip for a preset engine + voice, without a
+    profile. Mirrors generate_audio_sync but skips the profile lookup and
+    builds the voice_prompt dict directly. No DB writes, no generation row.
+    """
+    from ..backends import load_engine_model, get_tts_backend_for_engine, engine_needs_trim
+    from ..utils.chunked_tts import generate_chunked
+    from ..utils.audio import normalize_audio, trim_tts_output
+    from . import tts
+    from .profiles import _get_preset_voice_ids
+
+    # Validate engine + voice_id against the in-process registry.
+    valid_voice_ids = _get_preset_voice_ids(engine)
+    if not valid_voice_ids:
+        raise ValueError(f"Engine '{engine}' does not expose preset voices")
+    if voice_id not in valid_voice_ids:
+        raise ValueError(
+            f"Voice '{voice_id}' is not valid for engine '{engine}'. "
+            f"Use GET /profiles/presets/{engine} to list available voices."
+        )
+
+    tts_model = get_tts_backend_for_engine(engine)
+    effective_model_size = model_size or "default"
+    await load_engine_model(engine, effective_model_size)
+
+    voice_prompt = {
+        "voice_type": "preset",
+        "preset_engine": engine,
+        "preset_voice_id": voice_id,
+    }
+
+    trim_fn = trim_tts_output if engine_needs_trim(engine) else None
+
+    gen_kwargs: dict = dict(
+        language=language,
+        seed=seed,
+        instruct=instruct,
+        trim_fn=trim_fn,
+    )
+    if max_chunk_chars is not None:
+        gen_kwargs["max_chunk_chars"] = max_chunk_chars
+    if crossfade_ms is not None:
+        gen_kwargs["crossfade_ms"] = crossfade_ms
+
+    audio, sample_rate = await generate_chunked(
+        tts_model, text, voice_prompt, **gen_kwargs
+    )
+
+    if normalize:
+        audio = normalize_audio(audio)
+
+    return tts.audio_to_wav_bytes(audio, sample_rate)
+
+
 async def generate_audio_sync(
     *,
     profile_id: str,

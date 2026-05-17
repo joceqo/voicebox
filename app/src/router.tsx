@@ -10,6 +10,7 @@ import { CapturesTab } from '@/components/CapturesTab/CapturesTab';
 import { EffectsTab } from '@/components/EffectsTab/EffectsTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
 import { ModelsTab } from '@/components/ModelsTab/ModelsTab';
+import { QuickTab } from '@/components/QuickTab/QuickTab';
 import { AboutPage } from '@/components/ServerTab/AboutPage';
 import { CapturesPage } from '@/components/ServerTab/CapturesPage';
 import { ChangelogPage } from '@/components/ServerTab/ChangelogPage';
@@ -97,6 +98,13 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: MainEditor,
+});
+
+// Quick generate route (preset voices, no profile needed)
+const quickRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/quick',
+  component: QuickTab,
 });
 
 // Stories route
@@ -202,6 +210,7 @@ const serverRedirectRoute = createRoute({
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  quickRoute,
   storiesRoute,
   capturesRoute,
   voicesRoute,
