@@ -34,9 +34,11 @@ KYUTAI_SAMPLE_RATE = 24000
 KYUTAI_DEFAULT_VOICE = "alba"
 
 # Voicebox ISO codes -> pocket-tts language names accepted by TTSModel.load_model().
+# pocket-tts publishes a base model for most languages plus an opt-in "_24l"
+# variant (bigger, slower, higher quality). French only ships as 24l upstream.
 KYUTAI_LANG_MAP = {
     "en": "english",
-    "fr": "french",
+    "fr": "french_24l",  # base "french" not published by upstream
     "es": "spanish",
     "de": "german",
     "it": "italian",

@@ -7,6 +7,7 @@ import type {
   CudaStatus,
   EffectConfig,
   EngineCatalogResponse,
+  QuickGenerationRequest,
   EffectPresetCreate,
   EffectPresetResponse,
   GenerationRequest,
@@ -121,6 +122,19 @@ class ApiClient {
 
   async listEngines(): Promise<EngineCatalogResponse> {
     return this.request<EngineCatalogResponse>('/engines');
+  }
+
+  async quickGenerate(req: QuickGenerationRequest): Promise<Blob> {
+    const response = await fetch(`${this.getBaseUrl()}/generate/quick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(formatErrorDetail(error.detail, `HTTP error! status: ${response.status}`));
+    }
+    return response.blob();
   }
 
   async updateProfile(profileId: string, data: VoiceProfileCreate): Promise<VoiceProfileResponse> {

@@ -102,6 +102,33 @@ class GenerationRequest(BaseModel):
     )
 
 
+class QuickGenerationRequest(BaseModel):
+    """
+    Request for /generate/quick — preset-voice TTS without a saved profile.
+
+    Caller picks an engine + one of its built-in voices + language + text;
+    we synthesize and stream the audio back. No DB row is created, no
+    profile required.
+    """
+
+    text: str = Field(..., min_length=1, max_length=50000)
+    engine: str = Field(
+        ..., pattern="^(qwen_custom_voice|kokoro|supertonic|kyutai_pocket)$",
+        description="A preset-voice engine. Cloning engines are not supported by /generate/quick.",
+    )
+    voice_id: str = Field(..., min_length=1, max_length=100)
+    language: str = Field(
+        default="en",
+        pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it|he|ar|da|el|fi|hi|ms|nl|no|pl|sv|sw|tr|bg|cs|et|hr|hu|id|lt|lv|ro|sk|sl|uk|vi)$",
+    )
+    model_size: Optional[str] = Field(default=None, pattern="^(1\\.7B|0\\.6B|1B|3B)$")
+    seed: Optional[int] = Field(None, ge=0)
+    instruct: Optional[str] = Field(None, max_length=500)
+    normalize: bool = Field(default=True)
+    max_chunk_chars: int = Field(default=800, ge=100, le=5000)
+    crossfade_ms: int = Field(default=50, ge=0, le=500)
+
+
 class GenerationResponse(BaseModel):
     """Response model for voice generation."""
 

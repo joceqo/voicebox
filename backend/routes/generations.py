@@ -315,6 +315,49 @@ async def get_generation_status(generation_id: str, db: Session = Depends(get_db
     )
 
 
+@router.post("/generate/quick")
+async def quick_generate(data: models.QuickGenerationRequest):
+    """
+    Synthesize a one-shot clip without a saved profile.
+
+    Caller picks engine + one of its built-in voices + language + text.
+    Audio is streamed back as WAV; nothing is persisted (no Generation
+    row, no profile, no DB writes). Limited to preset-voice engines —
+    cloning engines need a reference audio sample and aren't supported.
+    """
+    from ..services.generation import quick_generate_sync
+
+    try:
+        wav_bytes = await quick_generate_sync(
+            engine=data.engine,
+            voice_id=data.voice_id,
+            text=data.text,
+            language=data.language,
+            model_size=data.model_size,
+            seed=data.seed,
+            instruct=data.instruct,
+            normalize=data.normalize,
+            max_chunk_chars=data.max_chunk_chars,
+            crossfade_ms=data.crossfade_ms,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    async def _wav_stream():
+        try:
+            chunk_size = 64 * 1024
+            for i in range(0, len(wav_bytes), chunk_size):
+                yield wav_bytes[i : i + chunk_size]
+        except (BrokenPipeError, ConnectionResetError, asyncio.CancelledError):
+            logger.debug("Client disconnected during audio stream")
+
+    return StreamingResponse(
+        _wav_stream(),
+        media_type="audio/wav",
+        headers={"Content-Disposition": 'attachment; filename="quick.wav"'},
+    )
+
+
 @router.post("/generate/stream")
 async def stream_speech(
     data: models.GenerationRequest,

@@ -40,6 +40,19 @@ export interface EngineCatalogResponse {
   llm: LLMEngineInfo[];
 }
 
+export interface QuickGenerationRequest {
+  text: string;
+  engine: string;
+  voice_id: string;
+  language?: string;
+  model_size?: string;
+  seed?: number;
+  instruct?: string;
+  normalize?: boolean;
+  max_chunk_chars?: number;
+  crossfade_ms?: number;
+}
+
 export interface VoiceProfileCreate {
   name: string;
   description?: string;

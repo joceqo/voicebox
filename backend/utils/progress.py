@@ -230,8 +230,16 @@ class ProgressManager:
             else:
                 logger.info(f"No initial progress available for {model_name}")
 
+            from .lifecycle import get_shutdown_event
+            shutdown = get_shutdown_event()
+
             # Stream updates
             while True:
+                # Exit cleanly if the server is shutting down — keeps
+                # uvicorn graceful shutdown / --reload from hanging on us.
+                if shutdown.is_set():
+                    logger.info(f"Shutdown signaled, closing SSE stream for {model_name}")
+                    break
                 try:
                     # Wait for update with timeout
                     progress = await asyncio.wait_for(queue.get(), timeout=1.0)

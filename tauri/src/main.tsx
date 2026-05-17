@@ -8,6 +8,13 @@ import '@/index.css';
 import { PlatformProvider } from '@/platform/PlatformContext';
 import { tauriPlatform } from './platform';
 
+// react-grab: dev-only UI element picker for AI coding agents.
+// Hover any element + Cmd+C → copies HTML + component name + file path
+// + line to the clipboard. Auto-disabled in production builds.
+if (import.meta.env.DEV) {
+  import('react-grab');
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
 
 from ..mcp_server import events as mcp_events
+from ..utils.lifecycle import get_shutdown_event
 
 
 logger = logging.getLogger(__name__)
@@ -26,10 +27,13 @@ async def speak_events(request: Request):
 
     async def event_stream():
         queue = mcp_events.subscribe()
+        shutdown = get_shutdown_event()
         try:
             # Immediate hello so EventSource knows the connection is live.
             yield {"event": "ready", "data": "{}"}
             while True:
+                if shutdown.is_set():
+                    return
                 if await request.is_disconnected():
                     return
                 try:

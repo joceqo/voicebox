@@ -297,6 +297,14 @@ async def _run_startup(application: FastAPI) -> None:
 async def _run_shutdown() -> None:
     """Unload models on lifespan exit."""
     logger.info("Voicebox server shutting down...")
+    # Wake any active SSE handler so uvicorn's graceful shutdown doesn't
+    # hang waiting for long-lived event streams.
+    try:
+        from .utils.lifecycle import signal_shutdown
+
+        signal_shutdown()
+    except Exception:
+        logger.exception("Failed to signal shutdown to SSE handlers")
     try:
         tts.unload_tts_model()
     except Exception:
