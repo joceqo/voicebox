@@ -820,3 +820,17 @@ class AvailableEffectsResponse(BaseModel):
     """Response listing all available effect types."""
 
     effects: List[AvailableEffect]
+
+
+class OpenAISpeechRequest(BaseModel):
+    """OpenAI-compatible ``POST /v1/audio/speech`` request body.
+
+    ``model``: ``tts-1``, ``tts-1-hd``, or ``voicebox-adaptive`` all map to
+    the adaptive pipeline. ``voicebox-<engine>`` selects a single engine.
+    """
+
+    model: str = Field(default="tts-1", max_length=100)
+    input: str = Field(..., min_length=1, max_length=50000)
+    voice: str = Field(default="alloy", max_length=100)
+    response_format: str = Field(default="wav", pattern=r"^(wav|pcm|mp3|opus|aac|flac)$")
+    speed: float = Field(default=1.0, ge=0.25, le=4.0)
