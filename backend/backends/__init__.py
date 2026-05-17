@@ -763,6 +763,10 @@ class TTSEngineEntry:
     # "cloning" = accepts a user reference audio sample.
     voice_mode: VoiceMode = "cloning"
     english_only: bool = False
+    # Adaptive pipeline metadata (None = not eligible).
+    # Lower priority = faster tier (0 = fastest).
+    adaptive_priority: int | None = None
+    adaptive_size_mb: int = 0
 
 
 @dataclass(frozen=True)
@@ -840,6 +844,8 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         model_configs=_get_supertonic_configs,
         description="ONNX, CPU, 31 langs, 10 preset voices",
         voice_mode="preset",
+        adaptive_priority=0,
+        adaptive_size_mb=400,
     ),
     TTSEngineEntry(
         engine="kyutai_pocket",
@@ -848,6 +854,8 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         model_configs=_get_kyutai_pocket_configs,
         description="PyTorch CPU, 6 langs, 26 preset voices, ~10x realtime",
         voice_mode="preset",
+        adaptive_priority=1,
+        adaptive_size_mb=400,
     ),
 ]
 
