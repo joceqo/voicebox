@@ -815,6 +815,9 @@ class TTSEngineEntry:
     factory: Callable[[], "TTSBackend"]
     model_configs: Callable[[], list[ModelConfig]]
     description: str = ""
+    # SPDX-style license id; matches the keys used by formatLicense in the app
+    # (e.g. "apache-2.0", "cc-by-nc-4.0"). Empty when unknown.
+    license: str = ""
     # "preset" = ships its own voice catalog, can't clone arbitrary audio.
     # "cloning" = accepts a user reference audio sample.
     voice_mode: VoiceMode = "cloning"
@@ -832,6 +835,7 @@ class LLMEngineEntry:
     factory: Callable[[], "LLMBackend"]
     model_configs: Callable[[], list[ModelConfig]]
     description: str = ""
+    license: str = ""
 
 
 _TTS_REGISTRY: list[TTSEngineEntry] = [
@@ -866,6 +870,7 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         factory=_make_chatterbox_backend,
         model_configs=_get_chatterbox_configs,
         description="23 languages, incl. Hebrew",
+        license="mit",
         voice_mode="cloning",
     ),
     TTSEngineEntry(
@@ -891,6 +896,7 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         factory=_make_kokoro_backend,
         model_configs=_get_kokoro_configs,
         description="82M params, CPU realtime, 8 langs",
+        license="apache-2.0",
         voice_mode="preset",
     ),
     TTSEngineEntry(
@@ -899,6 +905,7 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         factory=_make_supertonic_backend,
         model_configs=_get_supertonic_configs,
         description="ONNX, CPU, 31 langs, 10 preset voices",
+        license="openrail",
         voice_mode="preset",
         adaptive_priority=0,
         adaptive_size_mb=400,
@@ -919,6 +926,7 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         factory=_make_voxtral_backend,
         model_configs=_get_voxtral_configs,
         description="Mistral, MLX 4-bit, 9 langs, 20 preset voices (CC BY-NC)",
+        license="cc-by-nc-4.0",
         voice_mode="preset",
         adaptive_priority=2,
         adaptive_size_mb=3500,
@@ -933,6 +941,7 @@ _LLM_REGISTRY: list[LLMEngineEntry] = [
         factory=_make_qwen_llm_backend,
         model_configs=_get_qwen_llm_configs,
         description="Qwen3 instruct, used for refinement and personalities",
+        license="apache-2.0",
     ),
 ]
 

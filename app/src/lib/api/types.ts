@@ -22,6 +22,7 @@ export interface TTSEngineInfo {
   engine: string;
   display_name: string;
   description: string;
+  license: string;
   voice_mode: VoiceMode;
   english_only: boolean;
   languages: string[];
@@ -32,6 +33,7 @@ export interface LLMEngineInfo {
   engine: string;
   display_name: string;
   description: string;
+  license: string;
   models: EngineModelInfo[];
 }
 

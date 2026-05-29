@@ -29,6 +29,7 @@ class TTSEngineInfo(BaseModel):
     engine: str
     display_name: str
     description: str
+    license: str
     voice_mode: str  # "preset" | "cloning"
     english_only: bool
     languages: list[str]
@@ -39,6 +40,7 @@ class LLMEngineInfo(BaseModel):
     engine: str
     display_name: str
     description: str
+    license: str
     models: list[EngineModelInfo]
 
 
@@ -61,6 +63,7 @@ def _serialize_tts(entry: TTSEngineEntry) -> TTSEngineInfo:
         engine=entry.engine,
         display_name=entry.display_name,
         description=entry.description,
+        license=entry.license,
         voice_mode=entry.voice_mode,
         english_only=entry.english_only,
         languages=languages,
@@ -82,6 +85,7 @@ def _serialize_llm(entry: LLMEngineEntry) -> LLMEngineInfo:
         engine=entry.engine,
         display_name=entry.display_name,
         description=entry.description,
+        license=entry.license,
         models=[
             EngineModelInfo(
                 model_name=cfg.model_name,
