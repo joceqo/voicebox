@@ -61,6 +61,13 @@ unidic-lite>=1.0.8
 # English only at the time of writing. Models pulled from kyutai/pocket-tts.
 pocket-tts
 
+# Parakeet TDT 0.6B v3 STT (NVIDIA, ONNX, CPU, ~5x realtime, 25 EU langs incl.
+# FR+EN with automatic language detection, ~6.34% WER). onnx-asr wraps the
+# ONNX export (istupakov/parakeet-tdt-0.6b-v3-onnx) and downloads it from the
+# HuggingFace Hub on first use. onnxruntime is already pulled in above by
+# Supertonic; the [hub] extra adds huggingface-hub support for the download.
+onnx-asr[hub]>=0.5.0
+
 # Audio processing
 librosa>=0.10.0
 soundfile>=0.12.0

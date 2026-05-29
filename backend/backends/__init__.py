@@ -202,6 +202,7 @@ _tts_backend: Optional[TTSBackend] = None
 _tts_backends: dict[str, TTSBackend] = {}
 _tts_backends_lock = threading.Lock()
 _stt_backend: Optional[STTBackend] = None
+_parakeet_backend: Optional[STTBackend] = None
 _llm_backends: dict[str, LLMBackend] = {}
 _llm_backends_lock = threading.Lock()
 
@@ -422,6 +423,40 @@ def _get_whisper_configs() -> list[ModelConfig]:
     ]
 
 
+def _get_parakeet_configs() -> list[ModelConfig]:
+    """Return Parakeet STT model config (NVIDIA Parakeet TDT 0.6B v3, ONNX)."""
+    return [
+        ModelConfig(
+            model_name="parakeet-v3",
+            display_name="Parakeet TDT 0.6B v3 (ONNX, CPU, 25 langs)",
+            engine="parakeet",
+            hf_repo_id="istupakov/parakeet-tdt-0.6b-v3-onnx",
+            model_size="v3",
+            size_mb=478,
+            languages=[
+                "en", "fr", "es", "de", "it", "pt", "nl", "pl",
+            ],
+        ),
+    ]
+
+
+# Model-name set used to route STT requests to the Parakeet backend instead
+# of Whisper. Accepts the canonical config name plus the bare engine id.
+STT_ENGINE_IDS = {"parakeet-v3", "parakeet"}
+
+
+def resolve_stt_model(model_id: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Resolve an STT model id to ``(engine, normalized_id)``.
+
+    Whisper is the default: a Whisper size, a ``whisper-*`` name, or ``None``
+    all route to the Whisper backend. Anything in :data:`STT_ENGINE_IDS`
+    routes to Parakeet (normalized to ``"parakeet-v3"``).
+    """
+    if model_id and model_id in STT_ENGINE_IDS:
+        return "parakeet", "parakeet-v3"
+    return "whisper", model_id
+
+
 def _get_qwen_llm_configs() -> list[ModelConfig]:
     """Return Qwen3 LLM configs with backend-aware HF repo IDs.
 
@@ -479,6 +514,7 @@ def get_all_model_configs() -> list[ModelConfig]:
     for entry in _TTS_REGISTRY:
         configs.extend(entry.model_configs())
     configs.extend(_get_whisper_configs())
+    configs.extend(_get_parakeet_configs())
     for entry in _LLM_REGISTRY:
         configs.extend(entry.model_configs())
     return configs
@@ -501,8 +537,8 @@ def get_llm_model_configs() -> list[ModelConfig]:
 
 
 def get_stt_model_configs() -> list[ModelConfig]:
-    """Return only STT (Whisper) model configs."""
-    return _get_whisper_configs()
+    """Return only STT model configs (Whisper + Parakeet)."""
+    return _get_whisper_configs() + _get_parakeet_configs()
 
 
 # Lookup helpers — these replace the if/elif chains in main.py
@@ -935,6 +971,22 @@ def get_stt_backend() -> STTBackend:
     return _stt_backend
 
 
+def get_parakeet_backend() -> STTBackend:
+    """Get or create the Parakeet STT backend (module-level singleton).
+
+    Parakeet is an opt-in STT engine selected by model name; the default STT
+    backend (:func:`get_stt_backend`) remains Whisper.
+    """
+    global _parakeet_backend
+
+    if _parakeet_backend is None:
+        from .parakeet_backend import ParakeetSTTBackend
+
+        _parakeet_backend = ParakeetSTTBackend()
+
+    return _parakeet_backend
+
+
 def get_llm_backend() -> LLMBackend:
     """Get or create the default Qwen3 LLM backend based on platform."""
     return get_llm_backend_for_engine("qwen_llm")
@@ -964,8 +1016,9 @@ def get_llm_backend_for_engine(engine: str) -> LLMBackend:
 
 def reset_backends():
     """Reset backend instances (useful for testing)."""
-    global _tts_backend, _tts_backends, _stt_backend, _llm_backends
+    global _tts_backend, _tts_backends, _stt_backend, _parakeet_backend, _llm_backends
     _tts_backend = None
     _tts_backends.clear()
     _stt_backend = None
+    _parakeet_backend = None
     _llm_backends.clear()
