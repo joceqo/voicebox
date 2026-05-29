@@ -41,7 +41,7 @@ def _model_to_engine(model: str) -> str | None:
 # Engines with language-agnostic ("multi") voices return None and are harmless
 # to probe here. Order matters only as a tie-break; voice ids are unique enough
 # in practice that the first engine that knows the voice wins.
-_ADAPTIVE_LANG_ENGINES = ("kokoro", "qwen_custom_voice", "supertonic", "kyutai_pocket")
+_ADAPTIVE_LANG_ENGINES = ("kokoro", "qwen_custom_voice", "supertonic", "kyutai_pocket", "voxtral")
 
 
 def _resolve_adaptive_language(voice: str) -> str | None:

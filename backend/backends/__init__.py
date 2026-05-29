@@ -382,6 +382,20 @@ def _get_kyutai_pocket_configs() -> list[ModelConfig]:
     ]
 
 
+def _get_voxtral_configs() -> list[ModelConfig]:
+    return [
+        ModelConfig(
+            model_name="voxtral-tts",
+            display_name="Voxtral TTS (MLX 4-bit, 9 langs, 20 preset voices)",
+            engine="voxtral",
+            hf_repo_id="mlx-community/Voxtral-4B-TTS-2603-mlx-4bit",
+            size_mb=2500,
+            # CC BY-NC 4.0 (non-commercial) weights from Mistral.
+            languages=["en", "fr", "es", "de", "it", "pt", "nl", "ar", "hi"],
+        ),
+    ]
+
+
 def _get_whisper_configs() -> list[ModelConfig]:
     """Return Whisper STT model configs."""
     return [
@@ -768,6 +782,12 @@ def _make_kyutai_pocket_backend() -> "TTSBackend":
     return KyutaiPocketTTSBackend()
 
 
+def _make_voxtral_backend() -> "TTSBackend":
+    from .voxtral_backend import VoxtralTTSBackend
+
+    return VoxtralTTSBackend()
+
+
 def _make_qwen_custom_voice_backend() -> "TTSBackend":
     from .qwen_custom_voice_backend import QwenCustomVoiceBackend
 
@@ -892,6 +912,16 @@ _TTS_REGISTRY: list[TTSEngineEntry] = [
         voice_mode="preset",
         adaptive_priority=1,
         adaptive_size_mb=400,
+    ),
+    TTSEngineEntry(
+        engine="voxtral",
+        display_name="Voxtral TTS",
+        factory=_make_voxtral_backend,
+        model_configs=_get_voxtral_configs,
+        description="Mistral, MLX 4-bit, 9 langs, 20 preset voices (CC BY-NC)",
+        voice_mode="preset",
+        adaptive_priority=2,
+        adaptive_size_mb=3500,
     ),
 ]
 

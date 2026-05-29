@@ -83,6 +83,11 @@ def _get_preset_voice_ids(engine: str) -> set[str]:
 
         return {voice_id for voice_id, _name, _gender, _lang, _desc in QWEN_CUSTOM_VOICES}
 
+    if engine == "voxtral":
+        from ..backends.voxtral_backend import VOXTRAL_VOICES
+
+        return {voice_id for voice_id, _name, _gender, _lang in VOXTRAL_VOICES}
+
     return set()
 
 
@@ -120,6 +125,16 @@ def _get_preset_voice_language(engine: str, voice_id: str) -> str | None:
         from ..backends.qwen_custom_voice_backend import QWEN_CUSTOM_VOICES
 
         for vid, _name, _gender, lang, _desc in QWEN_CUSTOM_VOICES:
+            if vid == voice_id:
+                return lang
+        return None
+
+    if engine == "voxtral":
+        # Each Voxtral preset voice is pinned to a language (encoded in the
+        # voice id, e.g. fr_male => French). Return the ISO code.
+        from ..backends.voxtral_backend import VOXTRAL_VOICES
+
+        for vid, _name, _gender, lang in VOXTRAL_VOICES:
             if vid == voice_id:
                 return lang
         return None
