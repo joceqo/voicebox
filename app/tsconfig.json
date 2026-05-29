@@ -27,6 +27,6 @@
     },
     "types": ["vite/client"]
   },
-  "include": ["src"],
+  "include": ["src", ".storybook"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

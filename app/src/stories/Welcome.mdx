@@ -1,0 +1,52 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Welcome" />
+
+# Voicebox Design System
+
+Voicebox is a dark-mode-first desktop app for voice cloning and audio production. This
+Storybook documents the React component primitives that compose the app's UI.
+
+## Stack
+
+- **React 18** + **TypeScript** on **Vite**, packaged with **Tauri**
+- **Tailwind CSS v4** with CSS-variable design tokens (see `app/src/index.css`)
+- **Radix UI** primitives wrapped with **class-variance-authority** + **tailwind-merge**
+  (the shadcn/ui pattern)
+- **Framer Motion** for transitions, **Lucide** for icons,
+  **WaveSurfer.js** + **react-sound-visualizer** for audio surfaces
+
+## Design tokens
+
+Colors, radii, and other tokens are declared as CSS variables under `:root` and `.dark`
+in `app/src/index.css` and exposed to Tailwind via `@theme`. The theme switcher in the
+Storybook toolbar toggles the `.dark` class on `<html>` so all token-bound utilities
+re-resolve automatically.
+
+| Token group | Examples                                                                 |
+| ----------- | ------------------------------------------------------------------------ |
+| Surfaces    | `--background`, `--card`, `--popover`, `--sidebar`                       |
+| Brand       | `--primary`, `--accent` (gold in dark, muted gold in light)              |
+| Semantic    | `--destructive`, `--muted`, `--border`, `--input`, `--ring`              |
+| Data viz    | `--chart-1` … `--chart-5`                                                |
+| Radii       | `--radius-sm`, `--radius-md`, `--radius-lg`                              |
+
+## Authoring stories
+
+Co-locate stories next to their component:
+
+```
+src/components/ui/
+  button.tsx
+  button.stories.tsx     ← interactive playground + autodocs
+```
+
+For prose-heavy documentation pages (architecture notes, usage guidelines), use `.mdx`
+files anywhere under `src/`.
+
+## Useful scripts
+
+```bash
+bun --cwd app run storybook         # dev server on :6006
+bun --cwd app run build-storybook   # static export to app/storybook-static
+```

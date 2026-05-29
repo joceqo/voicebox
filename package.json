@@ -12,6 +12,8 @@
     "dev": "bun run setup:dev && cd tauri && bun run tauri dev",
     "dev:web": "cd web && bun run dev",
     "dev:landing": "cd landing && bun run dev",
+    "storybook": "cd app && bun run storybook",
+    "build:storybook": "cd app && bun run build-storybook",
     "dev:server": "uvicorn backend.main:app --reload --port 17493",
     "setup:dev": "bun run scripts/setup-dev-sidecar.js",
     "build": "./scripts/build-server.sh && cd tauri && bun run tauri build",

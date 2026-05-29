@@ -13,6 +13,7 @@ ENV/
 # Build outputs
 dist/
 build/
+storybook-static/
 *.egg-info/
 *.egg
 target/

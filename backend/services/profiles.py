@@ -83,7 +83,71 @@ def _get_preset_voice_ids(engine: str) -> set[str]:
 
         return {voice_id for voice_id, _name, _gender, _lang, _desc in QWEN_CUSTOM_VOICES}
 
+    if engine == "voxtral":
+        from ..backends.voxtral_backend import VOXTRAL_VOICES
+
+        return {voice_id for voice_id, _name, _gender, _lang in VOXTRAL_VOICES}
+
     return set()
+
+
+def _get_preset_voice_language(engine: str, voice_id: str) -> str | None:
+    """Return the ISO language a preset voice is meant to be spoken in, or None.
+
+    The returned value is suitable to pass straight to the engine's
+    ``generate(language=...)`` (i.e. an ISO code like "en"/"fr"/"es"). Engines
+    that consume a non-ISO code internally (e.g. Kokoro maps ISO through its
+    own LANG_CODE_MAP, Kyutai through KYUTAI_LANG_MAP, Qwen through
+    LANGUAGE_CODE_TO_NAME) all still accept the ISO code here.
+
+    Per-engine behaviour:
+      - kokoro: each voice IS tied to a language (encoded in the voice-id
+        prefix, e.g. ``ff_`` = French). The tuple lang is the ISO code → return it.
+      - qwen_custom_voice: each speaker has a native language (ISO) → return it.
+      - supertonic: voices are language-agnostic ("multi"); the engine relies
+        on the language hint to pick the language. The voice carries no usable
+        language → return None so the caller falls back to req.language/"en".
+      - kyutai_pocket: same — voices are "multi"; French (etc.) only works when
+        an explicit language is supplied. Return None.
+
+    Returns None when the engine/voice is unknown or the voice does not pin a
+    language, letting the endpoint apply its own fallback.
+    """
+    if engine == "kokoro":
+        from ..backends.kokoro_backend import KOKORO_VOICES
+
+        for vid, _name, _gender, lang in KOKORO_VOICES:
+            if vid == voice_id:
+                return lang
+        return None
+
+    if engine == "qwen_custom_voice":
+        from ..backends.qwen_custom_voice_backend import QWEN_CUSTOM_VOICES
+
+        for vid, _name, _gender, lang, _desc in QWEN_CUSTOM_VOICES:
+            if vid == voice_id:
+                return lang
+        return None
+
+    if engine == "voxtral":
+        # Each Voxtral preset voice is pinned to a language (encoded in the
+        # voice id, e.g. fr_male => French). Return the ISO code.
+        from ..backends.voxtral_backend import VOXTRAL_VOICES
+
+        for vid, _name, _gender, lang in VOXTRAL_VOICES:
+            if vid == voice_id:
+                return lang
+        return None
+
+    if engine == "supertonic":
+        # Voices are language-agnostic ("multi"); engine uses the language hint.
+        return None
+
+    if engine == "kyutai_pocket":
+        # Voices are language-agnostic ("multi"); engine uses the language hint.
+        return None
+
+    return None
 
 
 def _validate_profile_fields(

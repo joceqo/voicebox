@@ -277,6 +277,13 @@ async def _run_startup(application: FastAPI) -> None:
     create_background_task(check_and_update_cuda_binary())
 
     try:
+        from .services.adaptive import sweep_adaptive_sessions
+
+        sweep_adaptive_sessions()
+    except Exception as e:
+        logger.warning("Could not sweep adaptive sessions: %s", e)
+
+    try:
         progress_manager = get_progress_manager()
         progress_manager._set_main_loop(asyncio.get_running_loop())
     except Exception as e:
