@@ -760,8 +760,13 @@
       }
     },
     "general": {
-      "docs": { "title": "閱讀文件" },
-      "discord": { "title": "加入 Discord", "subtitle": "取得協助與分享聲音" },
+      "docs": {
+        "title": "閱讀文件"
+      },
+      "discord": {
+        "title": "加入 Discord",
+        "subtitle": "取得協助與分享聲音"
+      },
       "serverUrl": {
         "title": "伺服器 URL",
         "description": "Voicebox 後端伺服器的位址。",
@@ -1205,6 +1210,11 @@
       "body": "確定要刪除 <strong>{{name}}</strong> 嗎?",
       "sizeNote": "這將釋放 {{size}} 磁碟空間。若要再次使用該模型,必須重新下載。",
       "deleting": "刪除中…"
+    },
+    "licenseDialog": {
+      "title": "非商業授權",
+      "body": "此模型以<strong>CC BY-NC 4.0</strong>授權發布，僅允許非商業用途。下載即表示您同意其條款。請參閱<link>creativecommons.org/licenses/by-nc/4.0</link>。",
+      "action": "同意並下載"
     },
     "migrateDialog": {
       "title": "將模型移動到新位置?",

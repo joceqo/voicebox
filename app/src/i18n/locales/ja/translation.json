@@ -760,8 +760,13 @@
       }
     },
     "general": {
-      "docs": { "title": "ドキュメントを読む" },
-      "discord": { "title": "Discord に参加", "subtitle": "ヘルプやボイスの共有" },
+      "docs": {
+        "title": "ドキュメントを読む"
+      },
+      "discord": {
+        "title": "Discord に参加",
+        "subtitle": "ヘルプやボイスの共有"
+      },
       "serverUrl": {
         "title": "サーバー URL",
         "description": "Voicebox バックエンドサーバーのアドレス。",
@@ -1205,6 +1210,11 @@
       "body": "<strong>{{name}}</strong> を本当に削除しますか?",
       "sizeNote": "これにより {{size}} のディスク容量が解放されます。再度使用する場合は再ダウンロードが必要です。",
       "deleting": "削除中…"
+    },
+    "licenseDialog": {
+      "title": "非商用ライセンス",
+      "body": "このモデルは<strong>CC BY-NC 4.0</strong>ライセンスで公開されており、非商用利用のみが許可されています。ダウンロードすることで、その条件に同意したものとみなされます。<link>creativecommons.org/licenses/by-nc/4.0</link>をご覧ください。",
+      "action": "同意してダウンロード"
     },
     "migrateDialog": {
       "title": "モデルを新しい場所に移動しますか?",
