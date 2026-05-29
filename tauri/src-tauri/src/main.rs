@@ -212,6 +212,8 @@ struct TrayState {
     menu_bar_only: Mutex<bool>,
 }
 
+struct TrayIconHandle(tauri::tray::TrayIcon);
+
 #[cfg(target_os = "macos")]
 #[tauri::command]
 fn set_menu_bar_only(
@@ -1387,7 +1389,7 @@ pub fn run() {
                     &menu_bar_item, &sep3, &quit_item,
                 ])?;
 
-                let _tray = TrayIconBuilder::with_id("voicebox_tray")
+                let tray = TrayIconBuilder::with_id("voicebox_tray")
                     .icon(app.default_window_icon().unwrap().clone())
                     .menu(&menu)
                     .on_menu_event(|app, event| {
@@ -1423,7 +1425,48 @@ pub fn run() {
                                 let tray_state = app.state::<TrayState>();
                                 let current = *tray_state.menu_bar_only.lock().unwrap();
                                 let new_val = !current;
-                                let _ = set_menu_bar_only(app.clone(), tray_state, new_val);
+                                *tray_state.menu_bar_only.lock().unwrap() = new_val;
+                                // Persist flag file
+                                if let Ok(data_dir) = app.path().app_data_dir() {
+                                    let flag_path = data_dir.join("menu_bar_only.flag");
+                                    if new_val {
+                                        let _ = std::fs::write(&flag_path, b"1");
+                                    } else {
+                                        let _ = std::fs::remove_file(&flag_path);
+                                    }
+                                }
+                                // Direct call — we're already on the main thread in menu event handlers
+                                #[cfg(target_os = "macos")]
+                                {
+                                    if new_val {
+                                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                                    } else {
+                                        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+                                    }
+                                }
+                                // BUG 3: Rebuild the menu to reflect updated checkbox state
+                                let menu_bar_only_now = new_val;
+                                let _ = (|| -> tauri::Result<()> {
+                                    let status_item2 = MenuItem::with_id(app, "tray_status", "⚪ Server: starting…", false, None::<&str>)?;
+                                    let open_item2 = MenuItem::with_id(app, "tray_open", "Open Voicebox", true, None::<&str>)?;
+                                    let sep1b = PredefinedMenuItem::separator(app)?;
+                                    let start_item2 = MenuItem::with_id(app, "tray_start", "Start Server", true, None::<&str>)?;
+                                    let stop_item2 = MenuItem::with_id(app, "tray_stop", "Stop Server", true, None::<&str>)?;
+                                    let restart_item2 = MenuItem::with_id(app, "tray_restart", "Restart Server", true, None::<&str>)?;
+                                    let sep2b = PredefinedMenuItem::separator(app)?;
+                                    let menu_bar_item2 = CheckMenuItem::with_id(app, "tray_menu_bar_only", "Menu Bar Only", true, menu_bar_only_now, None::<&str>)?;
+                                    let sep3b = PredefinedMenuItem::separator(app)?;
+                                    let quit_item2 = PredefinedMenuItem::quit(app, Some("Quit Voicebox"))?;
+                                    let new_menu = Menu::with_items(app, &[
+                                        &status_item2, &open_item2, &sep1b,
+                                        &start_item2, &stop_item2, &restart_item2, &sep2b,
+                                        &menu_bar_item2, &sep3b, &quit_item2,
+                                    ])?;
+                                    if let Some(tray_icon) = app.tray_by_id("voicebox_tray") {
+                                        let _ = tray_icon.set_menu(Some(&new_menu));
+                                    }
+                                    Ok(())
+                                })();
                             }
                             _ => {}
                         }
@@ -1438,6 +1481,7 @@ pub fn run() {
                         }
                     })
                     .build(app)?;
+                app.manage(TrayIconHandle(tray));
             }
 
             // Hide title bar icon on Windows
