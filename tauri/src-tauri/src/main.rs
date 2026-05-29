@@ -20,6 +20,12 @@ use tauri::{command, State, Manager, WindowEvent, Emitter, Listener, RunEvent, W
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
 
+#[cfg(target_os = "macos")]
+use tauri::{
+    tray::{TrayIconBuilder, TrayIconEvent},
+    menu::{Menu, MenuItem, CheckMenuItem, PredefinedMenuItem},
+};
+
 pub const DICTATE_WINDOW_LABEL: &str = "dictate";
 const DICTATE_WINDOW_WIDTH: f64 = 420.0;
 const DICTATE_WINDOW_HEIGHT: f64 = 64.0;
@@ -200,6 +206,59 @@ struct ServerState {
     server_pid: Mutex<Option<u32>>,
     keep_running_on_close: Mutex<bool>,
     models_dir: Mutex<Option<String>>,
+}
+
+struct TrayState {
+    menu_bar_only: Mutex<bool>,
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn set_menu_bar_only(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, TrayState>,
+    enabled: bool,
+) -> Result<(), String> {
+    *state.menu_bar_only.lock().unwrap() = enabled;
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let flag_path = data_dir.join("menu_bar_only.flag");
+    if enabled {
+        std::fs::write(&flag_path, b"1").map_err(|e| e.to_string())?;
+    } else {
+        let _ = std::fs::remove_file(&flag_path);
+    }
+    let app_clone = app.clone();
+    app.run_on_main_thread(move || {
+        if enabled {
+            let _ = app_clone.set_activation_policy(tauri::ActivationPolicy::Accessory);
+        } else {
+            let _ = app_clone.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn get_menu_bar_only(state: tauri::State<'_, TrayState>) -> bool {
+    *state.menu_bar_only.lock().unwrap()
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn set_menu_bar_only(
+    _app: tauri::AppHandle,
+    _state: tauri::State<'_, TrayState>,
+    _enabled: bool,
+) -> Result<(), String> {
+    Err("Menu bar only mode is only supported on macOS".into())
+}
+
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn get_menu_bar_only(_state: tauri::State<'_, TrayState>) -> bool {
+    false
 }
 
 #[command]
@@ -1242,6 +1301,7 @@ pub fn run() {
         })
         .manage(audio_capture::AudioCaptureState::new())
         .manage(audio_output::AudioOutputState::new())
+        .manage(TrayState { menu_bar_only: Mutex::new(false) })
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -1293,6 +1353,91 @@ pub fn run() {
 
                 ensure_dictate_window(app.handle());
                 speak_monitor::spawn_speak_monitor(app.handle().clone());
+            }
+
+            // macOS system tray icon with server controls and menu-bar-only toggle
+            #[cfg(target_os = "macos")]
+            {
+                // Read persisted menu-bar-only preference
+                let menu_bar_only_pref = if let Ok(data_dir) = app.path().app_data_dir() {
+                    data_dir.join("menu_bar_only.flag").exists()
+                } else {
+                    false
+                };
+
+                if menu_bar_only_pref {
+                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    let tray_state = app.state::<TrayState>();
+                    *tray_state.menu_bar_only.lock().unwrap() = true;
+                }
+
+                let status_item = MenuItem::with_id(app, "tray_status", "⚪ Server: starting…", false, None::<&str>)?;
+                let open_item = MenuItem::with_id(app, "tray_open", "Open Voicebox", true, None::<&str>)?;
+                let sep1 = PredefinedMenuItem::separator(app)?;
+                let start_item = MenuItem::with_id(app, "tray_start", "Start Server", true, None::<&str>)?;
+                let stop_item = MenuItem::with_id(app, "tray_stop", "Stop Server", true, None::<&str>)?;
+                let restart_item = MenuItem::with_id(app, "tray_restart", "Restart Server", true, None::<&str>)?;
+                let sep2 = PredefinedMenuItem::separator(app)?;
+                let menu_bar_item = CheckMenuItem::with_id(app, "tray_menu_bar_only", "Menu Bar Only", true, menu_bar_only_pref, None::<&str>)?;
+                let sep3 = PredefinedMenuItem::separator(app)?;
+                let quit_item = PredefinedMenuItem::quit(app, Some("Quit Voicebox"))?;
+                let menu = Menu::with_items(app, &[
+                    &status_item, &open_item, &sep1,
+                    &start_item, &stop_item, &restart_item, &sep2,
+                    &menu_bar_item, &sep3, &quit_item,
+                ])?;
+
+                let _tray = TrayIconBuilder::with_id("voicebox_tray")
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    .on_menu_event(|app, event| {
+                        match event.id().as_ref() {
+                            "tray_open" => {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            }
+                            "tray_stop" => {
+                                let app = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    let state = app.state::<ServerState>();
+                                    let _ = stop_server(state).await;
+                                });
+                            }
+                            "tray_start" => {
+                                let app = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    let state = app.state::<ServerState>();
+                                    let _ = start_server(app.clone(), state, None, None).await;
+                                });
+                            }
+                            "tray_restart" => {
+                                let app = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    let state = app.state::<ServerState>();
+                                    let _ = restart_server(app.clone(), state, None).await;
+                                });
+                            }
+                            "tray_menu_bar_only" => {
+                                let tray_state = app.state::<TrayState>();
+                                let current = *tray_state.menu_bar_only.lock().unwrap();
+                                let new_val = !current;
+                                let _ = set_menu_bar_only(app.clone(), tray_state, new_val);
+                            }
+                            _ => {}
+                        }
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click { .. } = event {
+                            let app = tray.app_handle();
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                    })
+                    .build(app)?;
             }
 
             // Hide title bar icon on Windows
@@ -1374,7 +1519,9 @@ pub fn run() {
             paste_final_text,
             enable_hotkey,
             disable_hotkey,
-            update_chord_bindings
+            update_chord_bindings,
+            set_menu_bar_only,
+            get_menu_bar_only
         ])
         .on_window_event({
             let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
