@@ -1,3 +1,6 @@
+# Claude Code agent worktrees
+.claude/
+
 # Dependencies
 node_modules/
 bun.lockb
