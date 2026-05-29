@@ -61,6 +61,10 @@ interface UIStore {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  // Simple/Advanced mode toggle
+  simpleMode: boolean;
+  setSimpleMode: (v: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -94,12 +98,16 @@ export const useUIStore = create<UIStore>()(
         set({ theme });
         applyTheme(theme);
       },
+
+      simpleMode: false,
+      setSimpleMode: (v) => set({ simpleMode: v }),
     }),
     {
       name: 'voicebox-ui',
       partialize: (state) => ({
         selectedProfileId: state.selectedProfileId,
         theme: state.theme,
+        simpleMode: state.simpleMode,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);

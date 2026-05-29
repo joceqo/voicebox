@@ -21,6 +21,8 @@ import { LogsPage } from '@/components/ServerTab/LogsPage';
 import { MCPPage } from '@/components/ServerTab/MCPPage';
 import { SettingsLayout } from '@/components/ServerTab/ServerTab';
 import { Sidebar } from '@/components/Sidebar';
+import { SimpleModeToggle } from '@/components/SimpleModeToggle';
+import { useUIStore } from '@/stores/uiStore';
 import { StoriesTab } from '@/components/StoriesTab/StoriesTab';
 import { Toaster } from '@/components/ui/toaster';
 import { VoicesTab } from '@/components/VoicesTab/VoicesTab';
@@ -39,13 +41,18 @@ function RootLayout() {
   // Subscribe to SSE for pending generations — handles completion, auto-play, and history refresh
   useGenerationProgress();
 
+  const simpleMode = useUIStore((s) => s.simpleMode);
+
   return (
     <AppFrame>
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar isMacOS={isMacOS()} />
+        {!simpleMode && <Sidebar isMacOS={isMacOS()} />}
 
-        <main className="flex-1 ml-20 overflow-hidden flex flex-col">
+        <main className={`flex-1 ${!simpleMode ? 'ml-20' : ''} overflow-hidden flex flex-col`}>
           <div className="container mx-auto px-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
+            <div className="flex justify-end pt-1">
+              <SimpleModeToggle />
+            </div>
             <Outlet />
           </div>
         </main>
