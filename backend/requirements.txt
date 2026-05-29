@@ -68,6 +68,11 @@ pocket-tts
 # Supertonic; the [hub] extra adds huggingface-hub support for the download.
 onnx-asr[hub]>=0.5.0
 
+# Language auto-detection for the reader (/v1/audio/reader): when no language is
+# supplied, detect it from the text (FastText lid, offline) so each engine picks
+# a language-appropriate voice instead of defaulting blindly.
+fast-langdetect>=0.2.0
+
 # Audio processing
 librosa>=0.10.0
 soundfile>=0.12.0

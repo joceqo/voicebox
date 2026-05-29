@@ -25,6 +25,7 @@ def register_routers(app: FastAPI) -> None:
     from .events import router as events_router
     from .engines import router as engines_router
     from .openai_compat import router as openai_router
+    from .reader import router as reader_router
 
     app.include_router(health_router)
     app.include_router(profiles_router)
@@ -46,3 +47,4 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(events_router)
     app.include_router(engines_router)
     app.include_router(openai_router)
+    app.include_router(reader_router)
