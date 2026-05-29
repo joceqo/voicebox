@@ -470,7 +470,8 @@ export function ModelManagement() {
   // a non-commercial license; otherwise download directly.
   const requestDownload = (model: ModelStatus) => {
     const engine = ttsEngineByModel.get(model.model_name);
-    if (engine?.license === 'cc-by-nc-4.0') {
+    // Gate any non-commercial Creative Commons license (cc-by-nc, cc-by-nc-sa, …).
+    if (engine?.license?.startsWith('cc-by-nc')) {
       setLicenseGateModel(model);
       return;
     }
