@@ -2,7 +2,7 @@ import { Link, useMatchRoute } from '@tanstack/react-router';
 import { ChevronRight, Mic, Box, Settings, KeyRound, BookOpen, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import voiceboxLogo from '@/assets/voicebox-logo.png';
+import { VoiceStudioMark } from '@/components/brand/VoiceStudioMark';
 import { cn } from '@/lib/utils/cn';
 import { usePlatform } from '@/platform/PlatformContext';
 import type { UpdateStatus } from '@/platform/types';
@@ -30,12 +30,10 @@ export function BuildNav({ isMacOS }: BuildNavProps) {
         isMacOS && 'pt-14',
       )}
     >
-      {/* Logo */}
+      {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 mb-6">
-        <img src={voiceboxLogo} alt="Voicebox" className="sidebar-logo w-8 h-8 object-contain shrink-0" />
-        <span className="text-sm font-semibold tracking-wide text-foreground/80 uppercase">
-          {t('nav.build', 'Build')}
-        </span>
+        <VoiceStudioMark className="w-8 h-8 shrink-0" />
+        <span className="text-sm font-semibold tracking-wide text-foreground">VoiceStudio</span>
       </div>
 
       {/* Nav tree */}

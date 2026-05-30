@@ -98,7 +98,7 @@ def create_app() -> FastAPI:
     lifespan = compose_lifespan(voicebox_lifespan, mcp_app.router.lifespan_context)
 
     application = FastAPI(
-        title="voicebox API",
+        title="VoiceStudio API",
         description="Production-quality Qwen3-TTS voice cloning API",
         version=__version__,
         lifespan=lifespan,
@@ -216,7 +216,7 @@ async def _run_startup(application: FastAPI) -> None:
     import platform
     import sys
 
-    logger.info("Voicebox v%s starting up", __version__)
+    logger.info("VoiceStudio v%s starting up", __version__)
     logger.info(
         "Python %s on %s %s (%s)",
         sys.version.split()[0],

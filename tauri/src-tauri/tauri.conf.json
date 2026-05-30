@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Voicebox",
+  "productName": "VoiceStudio",
   "version": "0.5.0",
   "identifier": "sh.voicebox.app",
   "build": {
@@ -41,7 +41,7 @@
     },
     "windows": [
       {
-        "title": "",
+        "title": "VoiceStudio",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

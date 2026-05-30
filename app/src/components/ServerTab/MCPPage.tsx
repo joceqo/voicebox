@@ -18,17 +18,17 @@ import { SettingRow, SettingSection } from './SettingRow';
 
 function getStdioShimCommand(): string {
   if (typeof navigator === 'undefined') {
-    return '/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp';
+    return '/Applications/VoiceStudio.app/Contents/MacOS/voicebox-mcp';
   }
 
   const platform = `${navigator.platform} ${navigator.userAgent}`.toLowerCase();
   if (platform.includes('win')) {
-    return 'C:\\Program Files\\Voicebox\\voicebox-mcp.exe';
+    return 'C:\\Program Files\\VoiceStudio\\voicebox-mcp.exe';
   }
   if (platform.includes('linux')) {
     return '/opt/voicebox/voicebox-mcp';
   }
-  return '/Applications/Voicebox.app/Contents/MacOS/voicebox-mcp';
+  return '/Applications/VoiceStudio.app/Contents/MacOS/voicebox-mcp';
 }
 
 /**
