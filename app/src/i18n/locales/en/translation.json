@@ -9,7 +9,8 @@
     "loading": "Loading…",
     "error": "Error",
     "unknown": "Unknown",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "comingSoon": "Coming soon"
   },
   "nav": {
     "generate": "Generate",
@@ -20,7 +21,26 @@
     "audio": "Audio",
     "models": "Models",
     "settings": "Settings",
-    "updateBadge": "Update"
+    "updateBadge": "Update",
+    "build": "Build",
+    "tts": "TTS",
+    "stt": "STT",
+    "apiKeys": "API Keys",
+    "docs": "Docs"
+  },
+  "params": {
+    "title": "Parameters",
+    "model": "Model",
+    "voice": "Voice",
+    "voicePlaceholder": "Select voice",
+    "language": "Language",
+    "speed": "Speed",
+    "format": "Format",
+    "temperature": "Temperature"
+  },
+  "mode": {
+    "simple": "Simple",
+    "advanced": "Advanced"
   },
   "captures": {
     "title": "Captures",
@@ -760,8 +780,13 @@
       }
     },
     "general": {
-      "docs": { "title": "Read the Docs" },
-      "discord": { "title": "Join the Discord", "subtitle": "Get help & share voices" },
+      "docs": {
+        "title": "Read the Docs"
+      },
+      "discord": {
+        "title": "Join the Discord",
+        "subtitle": "Get help & share voices"
+      },
       "serverUrl": {
         "title": "Server URL",
         "description": "The address of your voicebox backend server.",

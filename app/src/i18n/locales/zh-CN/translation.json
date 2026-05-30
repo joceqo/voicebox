@@ -9,7 +9,8 @@
     "loading": "加载中…",
     "error": "错误",
     "unknown": "未知",
-    "unknownError": "未知错误"
+    "unknownError": "未知错误",
+    "comingSoon": "Coming soon"
   },
   "nav": {
     "generate": "生成",
@@ -20,7 +21,12 @@
     "audio": "音频",
     "models": "模型",
     "settings": "设置",
-    "updateBadge": "更新"
+    "updateBadge": "更新",
+    "build": "Build",
+    "tts": "TTS",
+    "stt": "STT",
+    "apiKeys": "API Keys",
+    "docs": "Docs"
   },
   "captures": {
     "title": "捕获",
@@ -760,8 +766,13 @@
       }
     },
     "general": {
-      "docs": { "title": "阅读文档" },
-      "discord": { "title": "加入 Discord", "subtitle": "获取帮助 & 分享声音" },
+      "docs": {
+        "title": "阅读文档"
+      },
+      "discord": {
+        "title": "加入 Discord",
+        "subtitle": "获取帮助 & 分享声音"
+      },
       "serverUrl": {
         "title": "服务器 URL",
         "description": "Voicebox 后端服务器的地址。",
@@ -1237,5 +1248,19 @@
       "migrationFailedGeneric": "迁移模型失败",
       "migrationConnectionLost": "迁移期间丢失连接"
     }
+  },
+  "params": {
+    "title": "Parameters",
+    "model": "Model",
+    "voice": "Voice",
+    "voicePlaceholder": "Select voice",
+    "language": "Language",
+    "speed": "Speed",
+    "format": "Format",
+    "temperature": "Temperature"
+  },
+  "mode": {
+    "simple": "Simple",
+    "advanced": "Advanced"
   }
 }
