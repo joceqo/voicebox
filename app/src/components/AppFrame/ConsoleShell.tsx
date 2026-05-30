@@ -26,50 +26,57 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
 
   const showColumns = !simpleMode;
 
-  return (
-    <GenerationFormProvider>
-      <div
-        className="flex flex-1 min-h-0 overflow-hidden"
-        style={
-          {
-            '--build-nav-w': showColumns ? BUILD_NAV_W : '0px',
-            '--params-w': showColumns && isIndexRoute ? PARAMS_W : '0px',
-          } as React.CSSProperties
-        }
-      >
-        {/* Left build nav */}
-        {showColumns && (
-          <BuildNav isMacOS={isMacOS()} />
+  const shell = (
+    <div
+      className="flex flex-1 min-h-0 overflow-hidden"
+      style={
+        {
+          '--build-nav-w': showColumns ? BUILD_NAV_W : '0px',
+          '--params-w': showColumns && isIndexRoute ? PARAMS_W : '0px',
+        } as React.CSSProperties
+      }
+    >
+      {/* Left build nav */}
+      {showColumns && (
+        <BuildNav isMacOS={isMacOS()} />
+      )}
+
+      {/* Center content */}
+      <main
+        className={cn(
+          'flex-1 overflow-hidden flex flex-col transition-all duration-200',
+          showColumns ? 'ml-[var(--build-nav-w)]' : 'ml-0',
         )}
+        style={{
+          marginRight: showColumns && isIndexRoute ? PARAMS_W : undefined,
+        }}
+      >
+        <div className="container mx-auto px-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
+          {children}
+        </div>
+      </main>
 
-        {/* Center content */}
-        <main
-          className={cn(
-            'flex-1 overflow-hidden flex flex-col transition-all duration-200',
-            showColumns ? 'ml-[var(--build-nav-w)]' : 'ml-0',
-          )}
-          style={{
-            marginRight: showColumns && isIndexRoute ? PARAMS_W : undefined,
-          }}
-        >
-          <div className="container mx-auto px-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
-            {children}
-          </div>
-        </main>
+      {/* Right params panel — only on index route in advanced mode */}
+      {showColumns && isIndexRoute && <ParamsPanel />}
 
-        {/* Right params panel — only on index route in advanced mode */}
-        {showColumns && isIndexRoute && <ParamsPanel />}
+      {/* Simple / Advanced toggle */}
+      <button
+        type="button"
+        onClick={toggleSimpleMode}
+        className="fixed bottom-4 right-4 z-50 text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground border border-border hover:bg-muted hover:text-foreground transition-all duration-200 backdrop-blur-sm"
+        title={simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
+      >
+        {simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
+      </button>
+    </div>
+  );
 
-        {/* Simple / Advanced toggle */}
-        <button
-          type="button"
-          onClick={toggleSimpleMode}
-          className="fixed bottom-4 right-4 z-50 text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground border border-border hover:bg-muted hover:text-foreground transition-all duration-200 backdrop-blur-sm"
-          title={simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
-        >
-          {simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
-        </button>
-      </div>
-    </GenerationFormProvider>
+  // Wrap in GenerationFormProvider ONLY on the index route so FloatingGenerateBox
+  // on other routes (stories, quick) keeps its own form instance and its
+  // onSuccess callbacks (e.g. addPendingStoryAdd) fire correctly.
+  return isIndexRoute ? (
+    <GenerationFormProvider>{shell}</GenerationFormProvider>
+  ) : (
+    shell
   );
 }
