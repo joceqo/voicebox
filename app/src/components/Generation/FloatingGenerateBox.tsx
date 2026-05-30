@@ -22,6 +22,7 @@ import {
   useEngineMetadata,
 } from '@/lib/hooks/useEngineCatalog';
 import { useGenerationForm } from '@/lib/hooks/useGenerationForm';
+import { useGenerationFormContext } from './GenerationFormContext';
 import { useProfile, useProfiles } from '@/lib/hooks/useProfiles';
 import { useStory } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
@@ -84,7 +85,11 @@ export function FloatingGenerateBox({
 
   const engineMetadata = useEngineMetadata();
 
-  const { form, handleSubmit, isPending } = useGenerationForm({
+  // Keep both hook calls unconditional (rules of hooks).
+  // ctx is provided by GenerationFormProvider on the index route;
+  // fallback is used everywhere else (QuickTab, StoriesTab, etc.).
+  const ctx = useGenerationFormContext();
+  const fallback = useGenerationForm({
     onSuccess: async (generationId) => {
       setIsExpanded(false);
       // Defer the story add until TTS completes -- useGenerationProgress handles it
@@ -103,6 +108,7 @@ export function FloatingGenerateBox({
       return preset?.effects_chain;
     },
   });
+  const { form, handleSubmit, isPending } = ctx ?? fallback;
 
   // Click away handler to collapse the box
   useEffect(() => {
@@ -251,14 +257,12 @@ export function FloatingGenerateBox({
   return (
     <motion.div
       ref={containerRef}
-      className={cn(
-        'fixed',
-        isStoriesRoute
-          ? // Aligned with StoryContent: sidebar + list width + gap (tab bleeds with -mx-8)
-            'left-[calc(5rem+360px+1.5rem)] right-8'
-          : 'left-[calc(5rem+2rem)] right-8 lg:right-auto lg:w-[calc((100%-5rem-4rem)/2-1rem)]',
-      )}
+      className="fixed right-8"
       style={{
+        // Use --build-nav-w CSS var set by ConsoleShell; fall back to 5rem (icon sidebar width)
+        left: isStoriesRoute
+          ? 'calc(var(--build-nav-w, 5rem) + 360px + 1.5rem)'
+          : 'calc(var(--build-nav-w, 5rem) + 2rem)',
         // On stories route: offset by track editor height when visible
         // On other routes: offset by audio player height when visible
         bottom: hasTrackEditor
