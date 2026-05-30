@@ -61,6 +61,11 @@ interface UIStore {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  // Console shell mode
+  simpleMode: boolean;
+  setSimpleMode: (b: boolean) => void;
+  toggleSimpleMode: () => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -94,12 +99,17 @@ export const useUIStore = create<UIStore>()(
         set({ theme });
         applyTheme(theme);
       },
+
+      simpleMode: false,
+      setSimpleMode: (b) => set({ simpleMode: b }),
+      toggleSimpleMode: () => set((s) => ({ simpleMode: !s.simpleMode })),
     }),
     {
       name: 'voicebox-ui',
       partialize: (state) => ({
         selectedProfileId: state.selectedProfileId,
         theme: state.theme,
+        simpleMode: state.simpleMode,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);
