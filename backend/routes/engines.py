@@ -94,10 +94,45 @@ def _serialize_llm(entry: LLMEngineEntry) -> LLMEngineInfo:
     )
 
 
+def _provider_tts_engines() -> list[TTSEngineInfo]:
+    """TTS engines for any upstream provider that has a key configured.
+
+    Surfaced only when configured so the picker never shows an engine the user
+    can't actually use (key removed → engine disappears). Voice mode is
+    "preset" — provider voices are seeded as profiles, like Supertonic.
+    """
+    from ..services.providers import configured_providers
+
+    infos: list[TTSEngineInfo] = []
+    for prov in configured_providers():
+        if not prov.tts_models:
+            continue
+        infos.append(
+            TTSEngineInfo(
+                engine=prov.key,
+                display_name=prov.name,
+                description=prov.description,
+                voice_mode="preset",
+                english_only=False,
+                languages=list(prov.languages),
+                models=[
+                    EngineModelInfo(
+                        model_name=mid,
+                        display_name=label,
+                        model_size="default",
+                        size_mb=0,
+                    )
+                    for mid, label in prov.tts_models
+                ],
+            )
+        )
+    return infos
+
+
 @router.get("/engines", response_model=EngineCatalogResponse)
 async def list_engines() -> EngineCatalogResponse:
-    """Return the full TTS + LLM engine catalog as declared in the registry."""
+    """Return the full TTS + LLM engine catalog (local registry + configured providers)."""
     return EngineCatalogResponse(
-        tts=[_serialize_tts(e) for e in _TTS_REGISTRY],
+        tts=[_serialize_tts(e) for e in _TTS_REGISTRY] + _provider_tts_engines(),
         llm=[_serialize_llm(e) for e in _LLM_REGISTRY],
     )

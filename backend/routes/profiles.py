@@ -74,6 +74,12 @@ async def import_profile(
 @router.get("/profiles/presets/{engine}")
 async def list_preset_voices(engine: str):
     """List available preset voices for an engine."""
+    # Upstream providers (e.g. "mistral"): voices from the cached/seeded list.
+    from ..services.providers import get_cached_voices, get_provider
+
+    if get_provider(engine):
+        return {"engine": engine, "voices": get_cached_voices(engine)}
+
     if engine == "kokoro":
         from ..backends.kokoro_backend import KOKORO_VOICES
 

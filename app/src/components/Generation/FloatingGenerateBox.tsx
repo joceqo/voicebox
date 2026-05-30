@@ -257,12 +257,15 @@ export function FloatingGenerateBox({
   return (
     <motion.div
       ref={containerRef}
-      className="fixed right-8"
+      className="fixed"
       style={{
-        // Use --build-nav-w CSS var set by ConsoleShell; fall back to 5rem (icon sidebar width)
+        // Use --build-nav-w / --params-w CSS vars set by ConsoleShell; fall back
+        // to 5rem (icon sidebar) / 0px. --params-w reserves the right params
+        // panel (260px on the index route) so the box doesn't slide under it.
         left: isStoriesRoute
           ? 'calc(var(--build-nav-w, 5rem) + 360px + 1.5rem)'
           : 'calc(var(--build-nav-w, 5rem) + 2rem)',
+        right: 'calc(var(--params-w, 0px) + 2rem)',
         // On stories route: offset by track editor height when visible
         // On other routes: offset by audio player height when visible
         bottom: hasTrackEditor

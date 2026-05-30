@@ -298,6 +298,54 @@ async def _run_startup(application: FastAPI) -> None:
     except Exception as e:
         logger.warning("Could not create HuggingFace cache directory: %s", e)
 
+    # Warm the default TTS + STT models in the background so the first
+    # generation / transcription doesn't pay the cold-load (and first-run
+    # download) cost. Fire-and-forget: startup stays fast and the UI is
+    # responsive while the models load. Defaults: Supertonic (TTS, ONNX/CPU)
+    # and Parakeet v3 (STT, ONNX/CPU) — both lightweight.
+    async def _preload_default_models() -> None:
+        from .backends import load_engine_model, get_parakeet_backend
+
+        try:
+            logger.info("Preloading default TTS (supertonic)...")
+            await load_engine_model("supertonic")
+            logger.info("Default TTS (supertonic) ready")
+        except Exception as e:
+            logger.warning("Could not preload default TTS (supertonic): %s", e)
+
+        try:
+            logger.info("Preloading default STT (parakeet)...")
+            await get_parakeet_backend().load_model_async()
+            logger.info("Default STT (parakeet) ready")
+        except Exception as e:
+            logger.warning("Could not preload default STT (parakeet): %s", e)
+
+    create_background_task(_preload_default_models())
+
+    # Refresh + seed voices for any provider whose key is already stored, so
+    # the provider's engine + voices are available after a restart (and for
+    # keys saved before voice-seeding existed). Best-effort, background.
+    async def _seed_provider_voices() -> None:
+        from .database.session import SessionLocal
+        from .services import providers as providers_svc
+
+        for prov in providers_svc.configured_providers():
+            try:
+                key = providers_svc.get_api_key(prov.key)
+                if not key:
+                    continue
+                voices = await providers_svc.refresh_voices(prov.key, key)
+                db = SessionLocal()
+                try:
+                    seeded = providers_svc.seed_provider_profiles(db, prov.key, voices)
+                finally:
+                    db.close()
+                logger.info("Provider %s: %d voices (%d newly seeded)", prov.key, len(voices), seeded)
+            except Exception as e:
+                logger.warning("Could not seed voices for provider %s: %s", prov.key, e)
+
+    create_background_task(_seed_provider_voices())
+
     logger.info("Ready")
 
 
@@ -316,6 +364,13 @@ async def _run_shutdown() -> None:
         tts.unload_tts_model()
     except Exception:
         logger.exception("Failed to unload TTS model")
+    try:
+        from .backends import get_tts_backend_for_engine, get_parakeet_backend
+
+        get_tts_backend_for_engine("supertonic").unload_model()
+        get_parakeet_backend().unload_model()
+    except Exception:
+        logger.exception("Failed to unload default Supertonic/Parakeet models")
     try:
         transcribe.unload_whisper_model()
     except Exception:

@@ -66,7 +66,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
       seed: undefined,
       modelSize: '1.7B',
       instruct: '',
-      engine: selectedEngine || 'qwen',
+      engine: selectedEngine || 'supertonic',
       personality: false,
       ...options.defaultValues,
     },
@@ -86,7 +86,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
     }
 
     try {
-      const engine = data.engine || 'qwen';
+      const engine = data.engine || 'supertonic';
       const info = engineMetadata.ttsByEngine.get(engine);
       const hasModelSizes = (info?.models.length ?? 0) > 1;
       const resolved = resolveModelNameForEngine(engineMetadata, engine, data.modelSize);

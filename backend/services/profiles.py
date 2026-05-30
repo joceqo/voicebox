@@ -88,6 +88,12 @@ def _get_preset_voice_ids(engine: str) -> set[str]:
 
         return {voice_id for voice_id, _name, _gender, _lang in VOXTRAL_VOICES}
 
+    # Upstream providers (e.g. "mistral"): voices come from the cached/seeded list.
+    from .providers import get_cached_voices, get_provider
+
+    if get_provider(engine):
+        return {v["voice_id"] for v in get_cached_voices(engine)}
+
     return set()
 
 
@@ -145,6 +151,15 @@ def _get_preset_voice_language(engine: str, voice_id: str) -> str | None:
 
     if engine == "kyutai_pocket":
         # Voices are language-agnostic ("multi"); engine uses the language hint.
+        return None
+
+    # Upstream providers: each provider voice carries its own language.
+    from .providers import get_cached_voices, get_provider
+
+    if get_provider(engine):
+        for v in get_cached_voices(engine):
+            if v["voice_id"] == voice_id:
+                return v.get("language")
         return None
 
     return None

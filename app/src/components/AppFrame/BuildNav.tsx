@@ -62,15 +62,19 @@ export function BuildNav({ isMacOS }: BuildNavProps) {
             {t('nav.tts', 'TTS')}
           </Link>
 
-          {/* STT — disabled / coming soon */}
-          <span
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ml-2 text-muted-foreground/40 cursor-not-allowed select-none"
-            title="Coming soon"
+          {/* STT */}
+          <Link
+            to="/stt"
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ml-2',
+              matchRoute({ to: '/stt', fuzzy: true })
+                ? 'bg-accent/15 text-accent font-medium'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+            )}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-40 shrink-0" />
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60 shrink-0" />
             {t('nav.stt', 'STT')}
-            <span className="ml-auto text-[10px] text-muted-foreground/30">soon</span>
-          </span>
+          </Link>
         </div>
 
         {/* Voices */}
@@ -104,15 +108,19 @@ export function BuildNav({ isMacOS }: BuildNavProps) {
         {/* Separator */}
         <div className="my-2 border-t border-border/50" />
 
-        {/* API keys — disabled */}
-        <span
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground/40 cursor-not-allowed select-none"
-          title="Coming soon"
+        {/* API keys */}
+        <Link
+          to="/api-keys"
+          className={cn(
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors',
+            matchRoute({ to: '/api-keys', fuzzy: true })
+              ? 'bg-accent/15 text-accent font-medium'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+          )}
         >
           <KeyRound className="h-3.5 w-3.5 shrink-0" />
           {t('nav.apiKeys', 'API Keys')}
-          <span className="ml-auto text-[10px] text-muted-foreground/30">soon</span>
-        </span>
+        </Link>
 
         {/* Docs — disabled */}
         <span

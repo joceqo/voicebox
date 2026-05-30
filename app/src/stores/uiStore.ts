@@ -85,7 +85,7 @@ export const useUIStore = create<UIStore>()(
       selectedProfileId: null,
       setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
-      selectedEngine: 'qwen',
+      selectedEngine: 'supertonic',
       setSelectedEngine: (engine) => set({ selectedEngine: engine }),
 
       selectedVoiceId: null,

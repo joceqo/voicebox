@@ -33,11 +33,13 @@ import type {
   StoryItemTrim,
   StoryItemVersionUpdate,
   StoryItemVolumeUpdate,
+  SttModel,
   StoryResponse,
+  ProviderListResponse,
+  ProviderValidateResponse,
   TranscriptionResponse,
   VoiceProfileCreate,
   VoiceProfileResponse,
-  WhisperModelSize,
   CaptureListResponse,
   CaptureResponse,
   CaptureCreateResponse,
@@ -414,7 +416,7 @@ class ApiClient {
   async transcribeAudio(
     file: File,
     language?: LanguageCode,
-    model?: WhisperModelSize,
+    model?: SttModel,
   ): Promise<TranscriptionResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -457,7 +459,7 @@ class ApiClient {
     options?: {
       source?: CaptureSource;
       language?: LanguageCode;
-      sttModel?: WhisperModelSize;
+      sttModel?: SttModel;
     },
   ): Promise<CaptureCreateResponse> {
     const formData = new FormData();
@@ -938,6 +940,44 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // ── Upstream voice providers (gateway proxy) ───────────────────────────────
+
+  async listProviders(): Promise<ProviderListResponse> {
+    return this.request<ProviderListResponse>('/providers');
+  }
+
+  /** Validate, then store, a provider's API key. Throws on invalid key. */
+  async setProviderKey(provider: string, apiKey: string): Promise<ProviderValidateResponse> {
+    return this.request<ProviderValidateResponse>(`/providers/${provider}/key`, {
+      method: 'PUT',
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+  }
+
+  /** Check a key without storing it. */
+  async validateProviderKey(
+    provider: string,
+    apiKey: string,
+  ): Promise<ProviderValidateResponse> {
+    return this.request<ProviderValidateResponse>(`/providers/${provider}/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+  }
+
+  /** Run a real generation with the stored key — confirms credit + pipeline. */
+  async testProviderGeneration(provider: string): Promise<ProviderValidateResponse> {
+    return this.request<ProviderValidateResponse>(`/providers/${provider}/test`, {
+      method: 'POST',
+    });
+  }
+
+  async deleteProviderKey(provider: string): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(`/providers/${provider}/key`, {
+      method: 'DELETE',
+    });
   }
 }
 

@@ -11,7 +11,9 @@ import { CapturesTab } from '@/components/CapturesTab/CapturesTab';
 import { EffectsTab } from '@/components/EffectsTab/EffectsTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
 import { ModelsTab } from '@/components/ModelsTab/ModelsTab';
+import { ApiKeysTab } from '@/components/ApiKeysTab/ApiKeysTab';
 import { QuickTab } from '@/components/QuickTab/QuickTab';
+import { SttTab } from '@/components/SttTab/SttTab';
 import { AboutPage } from '@/components/ServerTab/AboutPage';
 import { CapturesPage } from '@/components/ServerTab/CapturesPage';
 import { ChangelogPage } from '@/components/ServerTab/ChangelogPage';
@@ -98,6 +100,13 @@ const quickRoute = createRoute({
   component: QuickTab,
 });
 
+// Speech-to-text route
+const sttRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/stt',
+  component: SttTab,
+});
+
 // Stories route
 const storiesRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -131,6 +140,13 @@ const modelsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/models',
   component: ModelsTab,
+});
+
+// API keys route — manage upstream provider credentials (gateway proxy)
+const apiKeysRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/api-keys',
+  component: ApiKeysTab,
 });
 
 // Settings layout route (parent for sub-tabs)
@@ -202,11 +218,13 @@ const serverRedirectRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   quickRoute,
+  sttRoute,
   storiesRoute,
   capturesRoute,
   voicesRoute,
   effectsRoute,
   modelsRoute,
+  apiKeysRoute,
   settingsRoute.addChildren([
     settingsGeneralRoute,
     settingsGenerationRoute,

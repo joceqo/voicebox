@@ -244,6 +244,27 @@ def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
             "hotkey_enabled",
         )
 
+    # One-time default switch: the default STT model moved from Whisper
+    # "turbo" to the lighter Parakeet v3 (ONNX/CPU). Flip existing rows that
+    # still hold the previous default. Gated on a marker column so it runs
+    # exactly once and never re-overrides a later deliberate "turbo" choice.
+    if "stt_default_parakeet_applied" not in columns:
+        _add_column(
+            engine,
+            "capture_settings",
+            "stt_default_parakeet_applied BOOLEAN NOT NULL DEFAULT 0",
+            "stt_default_parakeet_applied",
+        )
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "UPDATE capture_settings SET stt_model = 'parakeet-v3' "
+                    "WHERE stt_model = 'turbo'"
+                )
+            )
+            conn.commit()
+        logger.info("Migrated default STT model: turbo -> parakeet-v3")
+
 
 def _migrate_mcp_bindings(engine, inspector, tables: set[str]) -> None:
     """Drop the legacy ``default_intent`` column and add ``default_personality``.

@@ -1,14 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useGenerationFormContext } from '@/components/Generation/GenerationFormContext';
 import { EngineModelSelector } from '@/components/Generation/EngineModelSelector';
-import { apiClient } from '@/lib/api/client';
+import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
 import { ALL_LANGUAGES } from '@/lib/constants/languages';
 import {
   getLanguageOptionsForEngineFromCatalog,
   useEngineMetadata,
 } from '@/lib/hooks/useEngineCatalog';
-import { useUIStore } from '@/stores/uiStore';
+import type { GenerationFormValues } from '@/lib/hooks/useGenerationForm';
 import {
   Select,
   SelectContent,
@@ -23,16 +22,8 @@ export function ParamsPanel() {
   // All hooks must be called unconditionally (rules of hooks).
   const { t } = useTranslation();
   const engineMetadata = useEngineMetadata();
-  const setSelectedProfileId = useUIStore((s) => s.setSelectedProfileId);
-  const selectedProfileId = useUIStore((s) => s.selectedProfileId);
 
-  const engine = ctx?.form.watch('engine') ?? 'qwen';
-
-  const { data: presetsData } = useQuery({
-    queryKey: ['presetVoices', engine],
-    queryFn: () => apiClient.listPresetVoices(engine),
-    enabled: !!engine && !!ctx,
-  });
+  const engine = ctx?.form.watch('engine') ?? 'supertonic';
 
   const languageOptions = getLanguageOptionsForEngineFromCatalog(
     engineMetadata,
@@ -67,28 +58,12 @@ export function ParamsPanel() {
         </section>
 
         {/* Voice / Profile */}
-        {presetsData && presetsData.voices.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-              {t('params.voice', 'Voice')}
-            </span>
-            <Select
-              value={selectedProfileId ?? ''}
-              onValueChange={(v) => setSelectedProfileId(v || null)}
-            >
-              <SelectTrigger className="h-8 text-xs bg-card border-border rounded-lg">
-                <SelectValue placeholder={t('params.voicePlaceholder', 'Select voice')} />
-              </SelectTrigger>
-              <SelectContent>
-                {presetsData.voices.map((v) => (
-                  <SelectItem key={v.id} value={v.id} className="text-xs">
-                    {v.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </section>
-        )}
+        <section className="flex flex-col gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            {t('params.voice', 'Voice')}
+          </span>
+          <ProfileList compact />
+        </section>
 
         {/* Language */}
         <section className="flex flex-col gap-2">
@@ -98,7 +73,7 @@ export function ParamsPanel() {
           <Select
             value={form.watch('language')}
             onValueChange={(v) =>
-              form.setValue('language', v as ReturnType<typeof form.watch<'language'>>)
+              form.setValue('language', v as GenerationFormValues['language'])
             }
           >
             <SelectTrigger className="h-8 text-xs bg-card border-border rounded-lg">

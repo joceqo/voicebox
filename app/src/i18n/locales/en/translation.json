@@ -10,7 +10,11 @@
     "error": "Error",
     "unknown": "Unknown",
     "unknownError": "Unknown error",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "or": "or",
+    "copy": "Copy",
+    "copied": "Copied",
+    "remove": "Remove"
   },
   "nav": {
     "generate": "Generate",
@@ -942,6 +946,7 @@
         "model": {
           "title": "Transcription model",
           "description": "Whisper ships with Voicebox and runs entirely on your machine.",
+          "parakeet": "Parakeet · 0.6B · ONNX/CPU · {{tail}}",
           "base": "Whisper Base · 74M · {{tail}}",
           "small": "Whisper Small · 244M · {{tail}}",
           "medium": "Whisper Medium · 769M · {{tail}}",
@@ -1186,6 +1191,11 @@
       "transcription": "Transcription",
       "languageModels": "Language Models"
     },
+    "sectionDescriptions": {
+      "voiceGeneration": "Text-to-speech engines that turn written text into spoken audio.",
+      "transcription": "Speech-to-text models that convert audio recordings into written text.",
+      "languageModels": "Text models used to refine dictation and rewrite text before speech — they don’t produce audio."
+    },
     "status": {
       "loaded": "Loaded"
     },
@@ -1262,5 +1272,42 @@
       "migrationFailedGeneric": "Failed to migrate models",
       "migrationConnectionLost": "Lost connection during migration"
     }
+  },
+  "stt": {
+    "title": "Transcription",
+    "dropHint": "Drag & drop an audio file, or click to browse",
+    "record": "Record",
+    "stopRecording": "Stop recording",
+    "model": "Model",
+    "language": "Language",
+    "autoDetect": "Auto-detect",
+    "transcribe": "Transcribe",
+    "transcribing": "Transcribing…",
+    "transcript": "Transcript",
+    "emptyResult": "(no speech detected)",
+    "failedTitle": "Transcription failed",
+    "failedBody": "Unknown error",
+    "micErrorTitle": "Microphone unavailable",
+    "micErrorBody": "Could not access the microphone."
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Connect frontier voice providers. Once a key is added, your apps can reach these models through Voicebox by just naming them — no separate integration.",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "keyPlaceholder": "Paste your {{name}} API key",
+    "replacePlaceholder": "Enter a new key to replace the stored one",
+    "save": "Save",
+    "remove": "Remove key",
+    "modelsHint": "Models available through Voicebox once connected:",
+    "toast": {
+      "saved": "{{name}} connected",
+      "removed": "{{name}} key removed",
+      "invalid": "Invalid API key",
+      "testOk": "Generation works — credit OK",
+      "testFailed": "Test generation failed"
+    },
+    "test": "Test",
+    "testHint": "Run a real generation to confirm the key works and you have credit"
   }
 }

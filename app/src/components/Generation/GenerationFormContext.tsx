@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
+import { FormProvider, type UseFormReturn } from 'react-hook-form';
 import { useGenerationForm, type GenerationFormValues } from '@/lib/hooks/useGenerationForm';
-import type { UseFormReturn } from 'react-hook-form';
 
 interface GenerationFormContextValue {
   form: UseFormReturn<GenerationFormValues>;
@@ -16,9 +16,13 @@ interface GenerationFormProviderProps {
 
 export function GenerationFormProvider({ children }: GenerationFormProviderProps) {
   const value = useGenerationForm();
+  // Also expose the react-hook-form context so shadcn Form components
+  // (FormControl/FormField/etc.) work anywhere under the provider — e.g.
+  // EngineModelSelector in ParamsPanel, which renders outside FloatingGenerateBox's
+  // own <Form> wrapper.
   return (
     <GenerationFormContext.Provider value={value}>
-      {children}
+      <FormProvider {...value.form}>{children}</FormProvider>
     </GenerationFormContext.Provider>
   );
 }
