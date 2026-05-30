@@ -6,6 +6,7 @@ import {
   redirect,
 } from '@tanstack/react-router';
 import { AppFrame } from '@/components/AppFrame/AppFrame';
+import { ConsoleShell } from '@/components/AppFrame/ConsoleShell';
 import { CapturesTab } from '@/components/CapturesTab/CapturesTab';
 import { EffectsTab } from '@/components/EffectsTab/EffectsTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
@@ -20,16 +21,12 @@ import { GpuPage } from '@/components/ServerTab/GpuPage';
 import { LogsPage } from '@/components/ServerTab/LogsPage';
 import { MCPPage } from '@/components/ServerTab/MCPPage';
 import { SettingsLayout } from '@/components/ServerTab/ServerTab';
-import { Sidebar } from '@/components/Sidebar';
 import { StoriesTab } from '@/components/StoriesTab/StoriesTab';
 import { Toaster } from '@/components/ui/toaster';
 import { VoicesTab } from '@/components/VoicesTab/VoicesTab';
 import { useGenerationProgress } from '@/lib/hooks/useGenerationProgress';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
 import { MODEL_DISPLAY_NAMES, useRestoreActiveTasks } from '@/lib/hooks/useRestoreActiveTasks';
-
-// Simple platform check that works in both web and Tauri
-const isMacOS = () => navigator.platform.toLowerCase().includes('mac');
 
 // Root layout component
 function RootLayout() {
@@ -41,15 +38,9 @@ function RootLayout() {
 
   return (
     <AppFrame>
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar isMacOS={isMacOS()} />
-
-        <main className="flex-1 ml-20 overflow-hidden flex flex-col">
-          <div className="container mx-auto px-8 max-w-[1800px] h-full overflow-hidden flex flex-col">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <ConsoleShell>
+        <Outlet />
+      </ConsoleShell>
 
       {/* Show download toasts for any active downloads (from anywhere) */}
       {activeDownloads.map((download) => {
