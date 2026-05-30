@@ -150,3 +150,58 @@ verified live.
 - **Inbound auth / remote access**: today no auth on inbound requests and CORS is
   localhost-first (`VOICEBOX_CORS_ORIGINS`). For exposing VoiceStudio as a shared
   gateway (`--host 0.0.0.0`), add API-key auth for clients + widen CORS.
+
+---
+
+## Open provider architecture (scaling to many services)
+
+The current provider layer is a clean extension point (`VoiceProvider` + registry
++ `ProviderTTSBackend` adapter), but three things make adding the Nth service cost
+real code. Do this refactor before wiring many more providers.
+
+**Friction today**
+1. Registry is a hardcoded tuple (`_PROVIDERS` in `services/providers/__init__.py`)
+   — every service means editing Python.
+2. All-or-nothing: code assumes a provider does both TTS *and* STT. Real services
+   vary (TTS-only, STT-only, cloning, streaming, emotions, formats).
+3. A single `api_key` field. Some need base_url / org / region / custom headers.
+
+**Target design (layered, non-destructive)**
+- **Capability-typed contract**: add `capabilities` (`tts`/`stt`/`list_voices`/
+  `clone`/`stream`), `formats`, and a `config_schema` (fields the API Keys page
+  renders) to `VoiceProvider`. Defaults preserve today's behavior (Mistral
+  unchanged). Routing + UI read capabilities instead of assuming TTS+STT.
+- **Two ways to add a provider**:
+  1. **Declarative manifest** (YAML/JSON) interpreted by ONE generic
+     `RestVoiceProvider` — covers the OpenAI-compatible long tail (OpenAI, Groq,
+     OpenRouter, self-hosted Kokoro-FastAPI, any `/v1/audio/*` endpoint) with
+     **zero Python**. The manifest declares base_url, auth scheme, endpoint paths,
+     request/response field mappings, and model list. Example:
+     ```yaml
+     key: openai
+     name: OpenAI
+     base_url: https://api.openai.com/v1
+     auth: { type: bearer }
+     capabilities: [tts, stt]
+     config_schema: [api_key]
+     tts: { endpoint: /audio/speech, models: [gpt-4o-mini-tts, tts-1] }
+     stt: { endpoint: /audio/transcriptions, models: [whisper-1] }
+     ```
+  2. **Code adapter** (current `VoiceProvider` subclass) — escape hatch for bespoke
+     APIs (ElevenLabs, Cartesia, Mistral's `{audio_data: base64}` quirk).
+- **Auto-registration**: scan a `providers/manifests/*.yaml` dir + discover
+  subclasses at startup → build `_PROVIDERS`. No tuple to hand-edit. Proxy (`/v1`)
+  and `ProviderTTSBackend` stay unchanged.
+- **Discovery endpoint** `GET /providers/catalog`: list ALL available integrations
+  (configured or not) with capabilities + config_schema → drives an LM-Studio-style
+  "Connections" page that renders the config form dynamically.
+- **Cross-cutting (later)**: per-provider rate-limit/backoff, optional fallback
+  chains (provider 429 → local engine), usage metering.
+
+**Refactor order**: (1) capabilities + config_schema on the base (defaults =
+current behavior); (2) make routing/UI/catalog capability-driven; (3) generic
+`RestVoiceProvider` + manifest loader; (4) migrate OpenAI as a manifest (proof);
+(5) `/providers/catalog` + Connections page.
+
+**Net effect**: adding an OpenAI-compatible service → 1 YAML file; adding a bespoke
+service → 1 auto-discovered subclass. No registry edits, no UI changes.
