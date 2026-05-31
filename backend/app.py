@@ -361,6 +361,12 @@ async def _run_shutdown() -> None:
     except Exception:
         logger.exception("Failed to signal shutdown to SSE handlers")
     try:
+        from .services.voxtral_stream_daemon import shutdown_voxtral_stream_daemon
+
+        await shutdown_voxtral_stream_daemon()
+    except Exception:
+        logger.exception("Failed to stop Voxtral stream daemon")
+    try:
         tts.unload_tts_model()
     except Exception:
         logger.exception("Failed to unload TTS model")
