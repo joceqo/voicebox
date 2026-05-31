@@ -61,7 +61,12 @@ async def transcribe_upload(
         ModelDownloadingError: the size is downloading; the caller should retry.
     """
     from ..utils.audio import load_audio, transcode_to_wav, is_soundfile_readable
-    from ..backends import WHISPER_HF_REPOS, resolve_stt_model, get_parakeet_backend
+    from ..backends import (
+        WHISPER_HF_REPOS,
+        resolve_stt_model,
+        get_parakeet_backend,
+        get_voxtral_stt_backend,
+    )
     from .task_queue import create_background_task
     from ..utils.tasks import get_task_manager
 
@@ -94,6 +99,14 @@ async def transcribe_upload(
             # the Whisper background-download / ModelDownloadingError dance.
             parakeet = get_parakeet_backend()
             text = await parakeet.transcribe(decode_path, language, normalized_id)
+            return text, duration
+
+        if engine == "voxtral_stt":
+            # Local Voxtral Mini Realtime via the Rust CLI. No background
+            # download dance: the binary + GGUF weights are installed manually,
+            # and the backend raises an actionable error if they're missing.
+            voxtral = get_voxtral_stt_backend()
+            text = await voxtral.transcribe(decode_path, language, normalized_id)
             return text, duration
 
         whisper_model = get_whisper_model()

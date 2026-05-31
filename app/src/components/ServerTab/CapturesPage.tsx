@@ -329,6 +329,9 @@ export function CapturesPage() {
                     tail: t('settings.captures.transcription.model.tail.fast'),
                   })}
                 </SelectItem>
+                <SelectItem value="voxtral-realtime">
+                  {t('settings.captures.transcription.model.voxtral')}
+                </SelectItem>
                 <SelectItem value="base">
                   {t('settings.captures.transcription.model.base', { tail: t('settings.captures.transcription.model.tail.fast') })}
                 </SelectItem>

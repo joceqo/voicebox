@@ -297,9 +297,29 @@ def _speak_response(
 async def _transcribe_file(
     path: Path, language: str | None, model: str | None
 ) -> dict[str, Any]:
-    from ..backends import WHISPER_HF_REPOS
+    from ..backends import (
+        WHISPER_HF_REPOS,
+        resolve_stt_model,
+        get_parakeet_backend,
+        get_voxtral_stt_backend,
+    )
     from ..services import transcribe as transcribe_service
     from ..utils.audio import load_audio
+
+    # load_audio is sync; keep the event loop responsive.
+    audio, sr = await asyncio.to_thread(load_audio, str(path))
+    duration = len(audio) / sr
+
+    # Dispatch by model name: Parakeet and Voxtral are opt-in; Whisper default.
+    engine, normalized_id = resolve_stt_model(model)
+
+    if engine == "parakeet":
+        text = await get_parakeet_backend().transcribe(str(path), language, normalized_id)
+        return {"text": text, "duration": duration, "language": language, "model": "parakeet-v3"}
+
+    if engine == "voxtral_stt":
+        text = await get_voxtral_stt_backend().transcribe(str(path), language, normalized_id)
+        return {"text": text, "duration": duration, "language": language, "model": "voxtral-realtime"}
 
     whisper = transcribe_service.get_whisper_model()
     model_size = model or whisper.model_size
@@ -308,10 +328,6 @@ async def _transcribe_file(
         raise ValueError(
             f"Invalid STT model '{model_size}'. Must be one of: {', '.join(valid)}"
         )
-
-    # load_audio is sync; keep the event loop responsive.
-    audio, sr = await asyncio.to_thread(load_audio, str(path))
-    duration = len(audio) / sr
 
     if (
         not whisper.is_loaded() or whisper.model_size != model_size

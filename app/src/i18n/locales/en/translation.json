@@ -951,6 +951,7 @@
           "title": "Transcription model",
           "description": "Whisper ships with VoiceStudio and runs entirely on your machine.",
           "parakeet": "Parakeet · 0.6B · ONNX/CPU · {{tail}}",
+          "voxtral": "Voxtral Realtime · 4B · Q4/Metal · Local",
           "base": "Whisper Base · 74M · {{tail}}",
           "small": "Whisper Small · 244M · {{tail}}",
           "medium": "Whisper Medium · 769M · {{tail}}",

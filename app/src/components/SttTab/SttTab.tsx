@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils/cn';
 // Whisper sizes stay available for languages Parakeet doesn't cover (e.g. CJK).
 const STT_MODELS: { value: SttModel; label: string }[] = [
   { value: 'parakeet-v3', label: 'Parakeet (fast)' },
+  { value: 'voxtral-realtime', label: 'Voxtral Realtime (local, Q4/Metal)' },
   { value: 'turbo', label: 'Whisper Turbo' },
   { value: 'large', label: 'Whisper Large' },
   { value: 'medium', label: 'Whisper Medium' },

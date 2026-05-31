@@ -116,18 +116,29 @@ _PARAKEET_STT_NAMES = {
     "nvidia/parakeet-tdt-0.6b-v3",
 }
 
+# Names that route to the local Voxtral Mini Realtime engine. Resolved to the
+# canonical "voxtral-realtime" id, dispatched by resolve_stt_model.
+_VOXTRAL_STT_NAMES = {
+    "voxtral-realtime",
+    "voxtral-stt",
+    "voxtral-mini-realtime",
+}
+
 
 def _resolve_stt_model(model: str | None) -> str:
     """Map an OpenAI transcription model name to a local STT model id.
 
-    Returns either a Whisper size (base/small/medium/large/turbo) or the
-    Parakeet id ("parakeet-v3"). The value is passed through to
-    ``transcribe_upload``, which dispatches to the right backend.
+    Returns a Whisper size (base/small/medium/large/turbo), the Parakeet id
+    ("parakeet-v3"), or the Voxtral id ("voxtral-realtime"). The value is
+    passed through to ``transcribe_upload``, which dispatches to the right
+    backend.
     """
     if not model:
         return "turbo"
     if model in _PARAKEET_STT_NAMES:                   # opt-in Parakeet engine
         return "parakeet-v3"
+    if model in _VOXTRAL_STT_NAMES:                    # opt-in local Voxtral engine
+        return "voxtral-realtime"
     if model in WHISPER_HF_REPOS:                      # already base/small/medium/large/turbo
         return model
     stripped = model[len("whisper-"):] if model.startswith("whisper-") else ""

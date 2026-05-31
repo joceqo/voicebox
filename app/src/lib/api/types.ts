@@ -182,8 +182,8 @@ export interface HistoryListResponse {
 
 export type WhisperModelSize = 'base' | 'small' | 'medium' | 'large' | 'turbo';
 
-/** STT model identifier: a Whisper size or the Parakeet ONNX model. */
-export type SttModel = WhisperModelSize | 'parakeet-v3';
+/** STT model identifier: a Whisper size, the Parakeet ONNX model, or local Voxtral Realtime. */
+export type SttModel = WhisperModelSize | 'parakeet-v3' | 'voxtral-realtime';
 
 export type Qwen3ModelSize = '0.6B' | '1.7B' | '4B';
 
