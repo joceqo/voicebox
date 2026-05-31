@@ -40,7 +40,9 @@
     "language": "Language",
     "speed": "Speed",
     "format": "Format",
-    "temperature": "Temperature"
+    "temperature": "Temperature",
+    "streaming": "Streaming",
+    "streamingHint": "Low-latency preview · not saved to history"
   },
   "mode": {
     "simple": "Simple",

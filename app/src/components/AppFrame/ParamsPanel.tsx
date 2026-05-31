@@ -1,3 +1,4 @@
+import { Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGenerationFormContext } from '@/components/Generation/GenerationFormContext';
 import { EngineModelSelector } from '@/components/Generation/EngineModelSelector';
@@ -8,6 +9,8 @@ import {
   useEngineMetadata,
 } from '@/lib/hooks/useEngineCatalog';
 import type { GenerationFormValues } from '@/lib/hooks/useGenerationForm';
+import { cn } from '@/lib/utils/cn';
+import { useUIStore } from '@/stores/uiStore';
 import {
   Select,
   SelectContent,
@@ -22,6 +25,8 @@ export function ParamsPanel() {
   // All hooks must be called unconditionally (rules of hooks).
   const { t } = useTranslation();
   const engineMetadata = useEngineMetadata();
+  const streamingPreview = useUIStore((s) => s.streamingPreview);
+  const setStreamingPreview = useUIStore((s) => s.setStreamingPreview);
 
   const engine = ctx?.form.watch('engine') ?? 'supertonic';
 
@@ -87,6 +92,36 @@ export function ParamsPanel() {
               ))}
             </SelectContent>
           </Select>
+        </section>
+
+        {/* Streaming preview toggle */}
+        <section className="flex items-center justify-between gap-2">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
+              <Zap className="h-3 w-3" />
+              {t('params.streaming', 'Streaming')}
+            </span>
+            <span className="text-[10px] text-muted-foreground/40">
+              {t('params.streamingHint', 'Low-latency preview · not saved to history')}
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={streamingPreview}
+            onClick={() => setStreamingPreview(!streamingPreview)}
+            className={cn(
+              'relative h-5 w-9 rounded-full transition-colors shrink-0',
+              streamingPreview ? 'bg-accent' : 'bg-muted',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                streamingPreview ? 'translate-x-[18px]' : 'translate-x-0.5',
+              )}
+            />
+          </button>
         </section>
 
         {/* Divider */}

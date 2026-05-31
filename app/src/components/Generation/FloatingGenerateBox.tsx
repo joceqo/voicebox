@@ -22,6 +22,7 @@ import {
   useEngineMetadata,
 } from '@/lib/hooks/useEngineCatalog';
 import { useGenerationForm } from '@/lib/hooks/useGenerationForm';
+import { useStreamingTTS } from '@/lib/hooks/useStreamingTTS';
 import { useGenerationFormContext } from './GenerationFormContext';
 import { useProfile, useProfiles } from '@/lib/hooks/useProfiles';
 import { useStory } from '@/lib/hooks/useStories';
@@ -45,6 +46,8 @@ export function FloatingGenerateBox({
   const selectedProfileId = useUIStore((state) => state.selectedProfileId);
   const setSelectedProfileId = useUIStore((state) => state.setSelectedProfileId);
   const setSelectedEngine = useUIStore((state) => state.setSelectedEngine);
+  const streamingPreview = useUIStore((state) => state.streamingPreview);
+  const { streamForProfile } = useStreamingTTS();
   const { data: selectedProfile } = useProfile(selectedProfileId || '');
   const { data: profiles } = useProfiles();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -251,6 +254,27 @@ export function FloatingGenerateBox({
   }, [isExpanded]);
 
   async function onSubmit(data: Parameters<typeof handleSubmit>[0]) {
+    // Low-latency streaming preview for preset/provider voices (plays via Web
+    // Audio as chunks arrive; preview-only, not saved to history). Falls back
+    // to normal generation if streaming isn't applicable or fails.
+    if (
+      streamingPreview &&
+      selectedProfile?.voice_type === 'preset' &&
+      selectedProfile.preset_voice_id &&
+      data.engine
+    ) {
+      try {
+        await streamForProfile({
+          engine: data.engine,
+          voiceId: selectedProfile.preset_voice_id,
+          input: data.text,
+          language: data.language,
+        });
+        return;
+      } catch {
+        // streaming unavailable → fall through to the normal /generate path
+      }
+    }
     await handleSubmit(data, selectedProfileId);
   }
 

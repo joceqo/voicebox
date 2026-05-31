@@ -66,6 +66,10 @@ interface UIStore {
   simpleMode: boolean;
   setSimpleMode: (b: boolean) => void;
   toggleSimpleMode: () => void;
+
+  // Low-latency streaming preview (provider/preset voices); preview-only, no history
+  streamingPreview: boolean;
+  setStreamingPreview: (b: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -103,6 +107,9 @@ export const useUIStore = create<UIStore>()(
       simpleMode: false,
       setSimpleMode: (b) => set({ simpleMode: b }),
       toggleSimpleMode: () => set((s) => ({ simpleMode: !s.simpleMode })),
+
+      streamingPreview: false,
+      setStreamingPreview: (b) => set({ streamingPreview: b }),
     }),
     {
       name: 'voicebox-ui',
@@ -110,6 +117,7 @@ export const useUIStore = create<UIStore>()(
         selectedProfileId: state.selectedProfileId,
         theme: state.theme,
         simpleMode: state.simpleMode,
+        streamingPreview: state.streamingPreview,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);
