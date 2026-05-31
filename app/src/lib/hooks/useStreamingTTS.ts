@@ -87,6 +87,7 @@ async function resolveModelVoice(
 
 export function useStreamingTTS() {
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -96,6 +97,17 @@ export function useStreamingTTS() {
     ctxRef.current?.close().catch(() => {});
     ctxRef.current = null;
     setIsStreaming(false);
+    setIsPaused(false);
+  }, []);
+
+  // Pause/resume the live stream playback (suspends the audio clock; queued
+  // chunks resume where they left off). Seeking/rewind during the stream isn't
+  // supported — the player bar takes over for that once the clip completes.
+  const pause = useCallback(() => {
+    ctxRef.current?.suspend().then(() => setIsPaused(true)).catch(() => {});
+  }, []);
+  const resume = useCallback(() => {
+    ctxRef.current?.resume().then(() => setIsPaused(false)).catch(() => {});
   }, []);
 
   const streamForProfile = useCallback(
@@ -112,6 +124,7 @@ export function useStreamingTTS() {
       const abort = new AbortController();
       abortRef.current = abort;
       setIsStreaming(true);
+      setIsPaused(false);
 
       let nextTime = ctx.currentTime + LEAD_IN_S;
       let headerSkipped = 0;
@@ -121,7 +134,10 @@ export function useStreamingTTS() {
       const pcmChunks: Uint8Array[] = []; // accumulate for the replayable WAV
 
       const settleIfDone = () => {
-        if (streamDone && activeSources === 0 && ctxRef.current === ctx) setIsStreaming(false);
+        if (streamDone && activeSources === 0 && ctxRef.current === ctx) {
+          setIsStreaming(false);
+          setIsPaused(false);
+        }
       };
 
       try {
@@ -208,5 +224,5 @@ export function useStreamingTTS() {
     [stop],
   );
 
-  return { isStreaming, streamForProfile, stop };
+  return { isStreaming, isPaused, streamForProfile, pause, resume, stop };
 }

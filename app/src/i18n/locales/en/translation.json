@@ -718,7 +718,9 @@
     "button": {
       "generate": "Generate speech",
       "generating": "Generating…",
-      "selectFirst": "Select a voice profile first"
+      "selectFirst": "Select a voice profile first",
+      "pause": "Pause",
+      "resume": "Resume"
     },
     "instruct": {
       "show": "Show delivery instructions",

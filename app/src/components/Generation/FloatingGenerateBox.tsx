@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMatchRoute } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Dices, Loader2, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react';
+import { Dices, Loader2, Pause, Play, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,7 @@ export function FloatingGenerateBox({
   const setSelectedProfileId = useUIStore((state) => state.setSelectedProfileId);
   const setSelectedEngine = useUIStore((state) => state.setSelectedEngine);
   const streamingPreview = useUIStore((state) => state.streamingPreview);
-  const { streamForProfile } = useStreamingTTS();
+  const { streamForProfile, isStreaming, isPaused, pause, resume } = useStreamingTTS();
   const { data: selectedProfile } = useProfile(selectedProfileId || '');
   const { data: profiles } = useProfiles();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -514,6 +514,21 @@ export function FloatingGenerateBox({
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Pause/resume the live stream (seek/rewind comes from the
+                    player bar once the clip finishes). */}
+                {isStreaming && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    onClick={() => (isPaused ? resume() : pause())}
+                    className="h-10 w-10 rounded-full"
+                    aria-label={isPaused ? t('generation.button.resume', 'Resume') : t('generation.button.pause', 'Pause')}
+                  >
+                    {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  </Button>
+                )}
 
                 <div className="group relative">
                   <Button
