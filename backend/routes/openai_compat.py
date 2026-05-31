@@ -207,6 +207,40 @@ async def create_speech(req: OpenAISpeechRequest):
     if provider_match:
         provider, upstream_model = provider_match
         api_key = _provider_key_or_400(provider)
+
+        # Low-latency path: relay the provider's audio chunk-by-chunk as it
+        # arrives (much lower time-to-first-audio than buffering the full clip).
+        if req.stream and hasattr(provider, "speech_stream"):
+            import numpy as np
+
+            want_wav = req.response_format != "pcm"  # default to playable WAV
+
+            async def _stream():
+                if want_wav:
+                    yield WAV_HEADER_24K_MONO_INT16
+                tail = b""
+                try:
+                    async for f32_bytes in provider.speech_stream(
+                        api_key=api_key,
+                        model=upstream_model,
+                        voice=req.voice,
+                        text=req.input,
+                        language=req.language,
+                    ):
+                        # float32 LE → int16 PCM; carry a remainder so we only
+                        # convert whole 4-byte samples across chunk boundaries.
+                        buf = tail + f32_bytes
+                        n = len(buf) - (len(buf) % 4)
+                        tail = buf[n:]
+                        if n:
+                            samples = np.frombuffer(buf[:n], dtype="<f4")
+                            yield (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+                except (BrokenPipeError, ConnectionResetError, asyncio.CancelledError):
+                    logger.debug("Client disconnected mid provider stream")
+
+            media = "audio/wav" if want_wav else "application/octet-stream"
+            return StreamingResponse(_stream(), media_type=media)
+
         try:
             audio, media_type = await provider.speech(
                 api_key=api_key,

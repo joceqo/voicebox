@@ -867,6 +867,9 @@ class OpenAISpeechRequest(BaseModel):
     voice: str = Field(default="alloy", max_length=100)
     response_format: str = Field(default="wav", pattern=r"^(wav|pcm|mp3|opus|aac|flac)$")
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
+    # When true and the model targets a provider that supports streaming, audio
+    # is relayed chunk-by-chunk (low time-to-first-audio) instead of buffered.
+    stream: bool = Field(default=False)
     # Voicebox extension (not part of the OpenAI spec): an optional explicit
     # language hint (ISO code, e.g. "en", "fr"). When omitted, the language is
     # inferred from the selected voice, falling back to English. Engines whose

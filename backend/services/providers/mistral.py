@@ -108,6 +108,56 @@ class MistralProvider(VoiceProvider):
             raise RuntimeError("Mistral TTS returned no audio_data")
         return base64.b64decode(audio_b64), _FORMAT_MEDIA_TYPES[fmt]
 
+    # Mistral TTS PCM is mono float32 little-endian at 24 kHz.
+    STREAM_SAMPLE_RATE = 24000
+
+    async def speech_stream(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        voice: str | None,
+        text: str,
+        language: str | None,
+    ):
+        """Async generator yielding raw float32 PCM chunks as they arrive.
+
+        Streams via Mistral's SSE: events ``speech.audio.delta`` carry a
+        base64 ``audio_data`` chunk; ``speech.audio.done`` ends the stream.
+        Lower time-to-first-audio than the buffered :meth:`speech`.
+        """
+        import json
+
+        payload = {
+            "model": model,
+            "input": text,
+            "response_format": "pcm",
+            "stream": True,
+        }
+        if voice and voice != _OPENAI_DEFAULT_VOICE:
+            payload["voice_id"] = voice
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/audio/speech",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if not data:
+                        continue
+                    try:
+                        obj = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    if obj.get("type") == "speech.audio.delta" and obj.get("audio_data"):
+                        yield base64.b64decode(obj["audio_data"])
+
     async def transcribe(
         self,
         *,
