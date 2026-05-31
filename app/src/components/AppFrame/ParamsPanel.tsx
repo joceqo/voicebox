@@ -62,6 +62,37 @@ export function ParamsPanel() {
           <EngineModelSelector form={form} compact />
         </section>
 
+        {/* Streaming preview toggle — kept near the top so it's visible without
+            scrolling past the (long) voice list. */}
+        <section className="flex items-center justify-between gap-2 rounded-lg bg-card/50 border border-border/60 px-3 py-2">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1">
+              <Zap className="h-3 w-3 text-accent" />
+              {t('params.streaming', 'Streaming')}
+            </span>
+            <span className="text-[10px] text-muted-foreground/40">
+              {t('params.streamingHint', 'Low-latency preview · not saved')}
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={streamingPreview}
+            onClick={() => setStreamingPreview(!streamingPreview)}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+              streamingPreview ? 'bg-accent' : 'bg-muted',
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform',
+                streamingPreview ? 'translate-x-[18px]' : 'translate-x-0.5',
+              )}
+            />
+          </button>
+        </section>
+
         {/* Voice / Profile */}
         <section className="flex flex-col gap-2">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -92,36 +123,6 @@ export function ParamsPanel() {
               ))}
             </SelectContent>
           </Select>
-        </section>
-
-        {/* Streaming preview toggle */}
-        <section className="flex items-center justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
-              <Zap className="h-3 w-3" />
-              {t('params.streaming', 'Streaming')}
-            </span>
-            <span className="text-[10px] text-muted-foreground/40">
-              {t('params.streamingHint', 'Low-latency preview · not saved to history')}
-            </span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={streamingPreview}
-            onClick={() => setStreamingPreview(!streamingPreview)}
-            className={cn(
-              'relative h-5 w-9 rounded-full transition-colors shrink-0',
-              streamingPreview ? 'bg-accent' : 'bg-muted',
-            )}
-          >
-            <span
-              className={cn(
-                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
-                streamingPreview ? 'translate-x-[18px]' : 'translate-x-0.5',
-              )}
-            />
-          </button>
         </section>
 
         {/* Divider */}

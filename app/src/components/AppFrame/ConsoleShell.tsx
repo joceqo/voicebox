@@ -1,4 +1,5 @@
 import { useMatchRoute } from '@tanstack/react-router';
+import { PanelRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GenerationFormProvider } from '@/components/Generation/GenerationFormContext';
@@ -63,10 +64,16 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
       <button
         type="button"
         onClick={toggleSimpleMode}
-        className="fixed bottom-4 right-4 z-50 text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground border border-border hover:bg-muted hover:text-foreground transition-all duration-200 backdrop-blur-sm"
-        title={simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground border border-border hover:bg-muted hover:text-foreground transition-all duration-200 backdrop-blur-sm"
+        title={
+          simpleMode
+            ? t('mode.switchToAdvanced', 'Switch to Advanced view')
+            : t('mode.switchToSimple', 'Switch to Simple view')
+        }
       >
-        {simpleMode ? t('mode.advanced', 'Advanced') : t('mode.simple', 'Simple')}
+        <PanelRight className="h-3 w-3" />
+        {/* Show the CURRENT mode (clicking switches to the other one). */}
+        {simpleMode ? t('mode.simple', 'Simple') : t('mode.advanced', 'Advanced')}
       </button>
     </div>
   );
