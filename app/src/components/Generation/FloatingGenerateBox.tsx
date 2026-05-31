@@ -28,6 +28,7 @@ import { useProfile, useProfiles } from '@/lib/hooks/useProfiles';
 import { useStory } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
 import { useGenerationStore } from '@/stores/generationStore';
+import { usePlayerStore } from '@/stores/playerStore';
 import { useStoryStore } from '@/stores/storyStore';
 import { useUIStore } from '@/stores/uiStore';
 import { EngineModelSelector } from './EngineModelSelector';
@@ -269,6 +270,18 @@ export function FloatingGenerateBox({
           voiceId: selectedProfile.preset_voice_id,
           input: data.text,
           language: data.language,
+          // Once streamed, load the assembled clip into the player bar so it
+          // can be replayed/scrubbed (the live stream itself is one-shot).
+          onComplete: (wavUrl) => {
+            usePlayerStore
+              .getState()
+              .setAudio(
+                wavUrl,
+                `stream-${Date.now()}`,
+                selectedProfileId,
+                selectedProfile?.name ?? data.text.slice(0, 40),
+              );
+          },
         });
         return;
       } catch {
