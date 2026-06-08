@@ -275,6 +275,27 @@ class MLXSTTBackend:
         """Check if model is loaded."""
         return self.model is not None
 
+    @staticmethod
+    def _ensure_mlx_stream():
+        """Establish/activate the MLX default GPU stream on the current thread.
+
+        MLX GPU ops require a Stream(gpu) on the calling thread. Load and
+        transcription both run via ``asyncio.to_thread`` (worker threads), so
+        without this the first op raises "There is no Stream(gpu, N) in current
+        thread" and crashes the process. Mirrors VoxtralBackend._ensure_mlx_stream.
+        """
+        import mlx.core as mx
+
+        try:
+            mx.set_default_device(mx.gpu)
+        except Exception:
+            # CPU-only / non-Metal builds: fall back silently.
+            return
+        try:
+            mx.set_default_stream(mx.default_stream(mx.gpu))
+        except Exception:
+            pass
+
     def _is_model_cached(self, model_size: str) -> bool:
         hf_repo = WHISPER_HF_REPOS.get(model_size, f"openai/whisper-{model_size}")
         return is_model_cached(hf_repo, weight_extensions=(".safetensors", ".bin", ".npz"))
@@ -300,6 +321,8 @@ class MLXSTTBackend:
 
     def _load_model_sync(self, model_size: str):
         """Synchronous model loading."""
+        # Runs in a worker thread — make sure the MLX GPU stream exists here.
+        self._ensure_mlx_stream()
         progress_model_name = f"whisper-{model_size}"
         is_cached = self._is_model_cached(model_size)
 
@@ -342,6 +365,9 @@ class MLXSTTBackend:
 
         def _transcribe_sync():
             """Run synchronous transcription in thread pool."""
+            # Runs in a worker thread — the MLX GPU stream must exist here or
+            # generate() raises "There is no Stream(gpu, N) in current thread".
+            self._ensure_mlx_stream()
             # MLX Whisper transcription using generate method
             # The generate method accepts audio path directly
             decode_options = {}
