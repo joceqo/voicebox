@@ -435,10 +435,22 @@ export function ModelManagement() {
   const llmModels = modelStatus?.models.filter((m) => llmModelNames.has(m.model_name)) ?? [];
 
   // Build sections
-  const sections: { label: string; models: ModelStatus[] }[] = [
-    { label: t('models.sections.voiceGeneration'), models: voiceModels },
-    { label: t('models.sections.transcription'), models: whisperModels },
-    { label: t('models.sections.languageModels'), models: llmModels },
+  const sections: { label: string; description: string; models: ModelStatus[] }[] = [
+    {
+      label: t('models.sections.voiceGeneration'),
+      description: t('models.sectionDescriptions.voiceGeneration'),
+      models: voiceModels,
+    },
+    {
+      label: t('models.sections.transcription'),
+      description: t('models.sectionDescriptions.transcription'),
+      models: whisperModels,
+    },
+    {
+      label: t('models.sections.languageModels'),
+      description: t('models.sectionDescriptions.languageModels'),
+      models: llmModels,
+    },
   ];
 
   // Get detail modal state for selected model
@@ -548,9 +560,10 @@ export function ModelManagement() {
         <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
           {sections.map((section) => (
             <div key={section.label}>
-              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1 px-1">
+              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">
                 {section.label}
               </h2>
+              <p className="text-xs text-muted-foreground/60 mb-1.5 px-1">{section.description}</p>
               <div className="border rounded-lg divide-y overflow-hidden">
                 {section.models.map((model) => {
                   const { isDownloading, hasError } = getModelState(model);

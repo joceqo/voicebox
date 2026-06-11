@@ -193,26 +193,39 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="voicebox.list_profiles",
         description=(
-            "List available voice profiles (both cloned voices and presets). "
-            "Use the returned `name` with voicebox.speak(profile=...)."
+            "List/search available voice profiles (cloned voices, local presets, "
+            "and cloud-provider voices like Mistral). Use the returned `name` with "
+            "voicebox.speak(profile=...). Optional `query` filters by name/engine "
+            "and `language` filters by ISO code (e.g. 'fr') — for voice pickers."
         ),
     )
-    async def voicebox_list_profiles() -> dict[str, Any]:
+    async def voicebox_list_profiles(
+        query: str | None = None,
+        language: str | None = None,
+    ) -> dict[str, Any]:
         db = next(get_db())
         try:
             profiles = await profiles_service.list_profiles(db)
-            return {
-                "profiles": [
+            q = (query or "").strip().lower()
+            lang = (language or "").strip().lower()
+            out = []
+            for p in profiles:
+                engine = getattr(p, "default_engine", None) or getattr(p, "preset_engine", None)
+                if lang and (p.language or "").lower() != lang:
+                    continue
+                if q and q not in p.name.lower() and q not in (engine or "").lower():
+                    continue
+                out.append(
                     {
                         "id": p.id,
                         "name": p.name,
                         "voice_type": p.voice_type,
                         "language": p.language,
+                        "engine": engine,
                         "has_personality": bool(getattr(p, "personality", None)),
                     }
-                    for p in profiles
-                ]
-            }
+                )
+            return {"profiles": out}
         finally:
             db.close()
 

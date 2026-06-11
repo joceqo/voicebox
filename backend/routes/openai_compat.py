@@ -9,12 +9,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ..backends import WHISPER_HF_REPOS, get_stt_model_configs
 from ..models import OpenAISpeechRequest
+from ..services.providers import get_api_key, split_provider_model
 from ..services.adaptive import (
     AdaptiveSession,
     WAV_HEADER_24K_MONO_INT16,
@@ -35,6 +37,31 @@ def _model_to_engine(model: str) -> str | None:
     if model.startswith("voicebox-"):
         return model[len("voicebox-"):]
     return None
+
+
+def _provider_key_or_400(provider) -> str:
+    """Fetch the stored key for *provider* or raise a clear 400."""
+    api_key = get_api_key(provider.key)
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"No API key configured for provider '{provider.key}'. "
+                "Add one on the API Keys page."
+            ),
+        )
+    return api_key
+
+
+def _provider_upstream_error(provider, e: Exception) -> HTTPException:
+    """Map an upstream request failure to a 502 with a readable detail."""
+    if isinstance(e, httpx.HTTPStatusError):
+        body = e.response.text[:200]
+        detail = f"{provider.name} returned {e.response.status_code}: {body}"
+    else:
+        detail = f"{provider.name} request failed: {e}"
+    logger.warning("Upstream provider error (%s): %s", provider.key, detail)
+    return HTTPException(status_code=502, detail=detail)
 
 
 # Preset engines whose voices may pin a language (kokoro, qwen_custom_voice).
@@ -168,7 +195,64 @@ async def create_speech(req: OpenAISpeechRequest):
 
     Supports ``response_format``: ``wav`` (streaming header + PCM),
     ``pcm`` (raw int16). ``mp3``/``opus``/``aac``/``flac`` return 400.
+
+    ``model: "<provider>/<upstream_model>"`` (e.g. ``mistral/voxtral-mini-tts-2603``)
+    proxies the request to a configured upstream provider instead.
     """
+
+    # ── Upstream provider proxy ──────────────────────────────────────
+    # Checked first: providers handle their own formats (mp3/flac/opus), so
+    # this must run before the local-only response_format restriction below.
+    provider_match = split_provider_model(req.model)
+    if provider_match:
+        provider, upstream_model = provider_match
+        api_key = _provider_key_or_400(provider)
+
+        # Low-latency path: relay the provider's audio chunk-by-chunk as it
+        # arrives (much lower time-to-first-audio than buffering the full clip).
+        if req.stream and hasattr(provider, "speech_stream"):
+            import numpy as np
+
+            want_wav = req.response_format != "pcm"  # default to playable WAV
+
+            async def _stream():
+                if want_wav:
+                    yield WAV_HEADER_24K_MONO_INT16
+                tail = b""
+                try:
+                    async for f32_bytes in provider.speech_stream(
+                        api_key=api_key,
+                        model=upstream_model,
+                        voice=req.voice,
+                        text=req.input,
+                        language=req.language,
+                    ):
+                        # float32 LE → int16 PCM; carry a remainder so we only
+                        # convert whole 4-byte samples across chunk boundaries.
+                        buf = tail + f32_bytes
+                        n = len(buf) - (len(buf) % 4)
+                        tail = buf[n:]
+                        if n:
+                            samples = np.frombuffer(buf[:n], dtype="<f4")
+                            yield (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+                except (BrokenPipeError, ConnectionResetError, asyncio.CancelledError):
+                    logger.debug("Client disconnected mid provider stream")
+
+            media = "audio/wav" if want_wav else "application/octet-stream"
+            return StreamingResponse(_stream(), media_type=media)
+
+        try:
+            audio, media_type = await provider.speech(
+                api_key=api_key,
+                model=upstream_model,
+                voice=req.voice,
+                text=req.input,
+                language=req.language,
+                response_format=req.response_format,
+            )
+        except Exception as e:
+            raise _provider_upstream_error(provider, e)
+        return StreamingResponse(iter([audio]), media_type=media_type)
 
     if req.response_format in ("mp3", "opus", "aac", "flac"):
         raise HTTPException(
@@ -238,7 +322,10 @@ async def create_transcription(
 ):
     """Transcribe audio — OpenAI-compatible. Maps OpenAI model names
     (whisper-1, gpt-4o-transcribe…) to local Whisper sizes. Supports
-    response_format 'json' (default) and 'text'."""
+    response_format 'json' (default) and 'text'.
+
+    ``model: "<provider>/<upstream_model>"`` (e.g. ``mistral/voxtral-mini-latest``)
+    proxies the transcription to a configured upstream provider instead."""
     if response_format not in ("json", "text"):
         return _openai_error(
             400,
@@ -246,6 +333,29 @@ async def create_transcription(
             "invalid_request_error",
             "unsupported_response_format",
         )
+
+    # ── Upstream provider proxy ──────────────────────────────────────
+    provider_match = split_provider_model(model) if model else None
+    if provider_match:
+        provider, upstream_model = provider_match
+        api_key = _provider_key_or_400(provider)
+        try:
+            file_bytes = await file.read()
+            text = await provider.transcribe(
+                api_key=api_key,
+                model=upstream_model,
+                file_bytes=file_bytes,
+                filename=file.filename or "audio.wav",
+                language=language,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise _provider_upstream_error(provider, e)
+        if response_format == "text":
+            return PlainTextResponse(text)
+        return {"text": text}
+
     stt_model = _resolve_stt_model(model)
     try:
         text, _duration = await transcribe_upload(file, language, stt_model)
@@ -269,9 +379,12 @@ async def create_transcription(
 
 
 class OpenAIVoice(BaseModel):
-    id: str
+    id: str  # the `voice` to pass to POST /v1/audio/speech
     engine: str
-    model: str  # usable as the `model` field in POST /v1/audio/speech
+    model: str  # the `model` to pass to POST /v1/audio/speech
+    name: str | None = None  # display label for pickers
+    language: str | None = None  # ISO code, or null for language-agnostic voices
+    provider: bool = False  # True = cloud provider (uses your API key), False = local
 
 
 class OpenAIVoicesResponse(BaseModel):
@@ -280,19 +393,139 @@ class OpenAIVoicesResponse(BaseModel):
     transcription_models: list[str]
 
 
-@router.get("/audio/voices", response_model=OpenAIVoicesResponse)
-async def list_voices():
-    """List TTS voices and STT model names (OpenAI-ish catalog).
-    Each voice's `model`+`id` round-trips into POST /v1/audio/speech as
-    the `model` and `voice` fields."""
+def _build_voice_catalog() -> list[OpenAIVoice]:
+    """Full TTS voice catalog: local engine presets + configured providers.
+
+    Each voice carries the exact ``model`` + ``id`` to round-trip into
+    POST /v1/audio/speech, plus ``language`` and ``provider`` for filtering.
+    """
     from ..backends import _TTS_REGISTRY
-    from ..services.profiles import _get_preset_voice_ids
+    from ..services.profiles import _get_preset_voice_ids, _get_preset_voice_language
+    from ..services.providers import configured_providers, get_cached_voices
 
     voices: list[OpenAIVoice] = []
+
+    # Local engines.
     for entry in _TTS_REGISTRY:
         model_alias = f"voicebox-{entry.engine}"
         for voice_id in sorted(_get_preset_voice_ids(entry.engine)):
-            voices.append(OpenAIVoice(id=voice_id, engine=entry.engine, model=model_alias))
+            voices.append(
+                OpenAIVoice(
+                    id=voice_id,
+                    engine=entry.engine,
+                    model=model_alias,
+                    name=voice_id,
+                    language=_get_preset_voice_language(entry.engine, voice_id),
+                    provider=False,
+                )
+            )
 
-    stt_models = [cfg.model_name for cfg in get_stt_model_configs()]
-    return OpenAIVoicesResponse(voices=voices, transcription_models=stt_models)
+    # Configured upstream providers (e.g. Mistral) — voice carries language + name.
+    for prov in configured_providers():
+        if not prov.tts_models:
+            continue
+        model_id = f"{prov.key}/{prov.tts_models[0][0]}"
+        label_suffix = f" ({prov.name})"
+        for v in get_cached_voices(prov.key):
+            name = v.get("name") or v["voice_id"]
+            # Seeded profiles store "Marie - Sad (Mistral (Voxtral))"; drop the
+            # provider suffix here so the gateway picker shows a clean label.
+            if name.endswith(label_suffix):
+                name = name[: -len(label_suffix)]
+            voices.append(
+                OpenAIVoice(
+                    id=v["voice_id"],
+                    engine=prov.key,
+                    model=model_id,
+                    name=name,
+                    language=v.get("language"),
+                    provider=True,
+                )
+            )
+
+    return voices
+
+
+@router.get("/audio/voices", response_model=OpenAIVoicesResponse)
+async def list_voices():
+    """List every available TTS voice + STT model — built for client pickers.
+
+    Each voice carries the exact ``model`` + ``id`` to round-trip into
+    POST /v1/audio/speech (as ``model`` and ``voice``), plus ``language`` so a
+    client can filter/autocomplete by language (e.g. only French), and
+    ``provider`` to distinguish local engines from cloud providers.
+
+    Includes local engine preset voices AND configured upstream providers
+    (e.g. Mistral) — so a single call gives a downstream app the full menu.
+    """
+    return OpenAIVoicesResponse(
+        voices=_build_voice_catalog(),
+        transcription_models=[cfg.model_name for cfg in get_stt_model_configs()],
+    )
+
+
+def _voice_match_score(v: OpenAIVoice, q: str) -> int | None:
+    """Rank a voice against a lowercase query, or None if it doesn't match.
+
+    Lower score = better. Matches on name, voice id, engine, and language so
+    "fr", "marie", "supertonic" all work. Prefix/exact matches rank above
+    substring matches.
+    """
+    fields = [
+        (v.name or "").lower(),
+        v.id.lower(),
+        v.engine.lower(),
+        (v.language or "").lower(),
+    ]
+    best: int | None = None
+    for f in fields:
+        if not f:
+            continue
+        if f == q:
+            score = 0
+        elif f.startswith(q):
+            score = 1
+        elif q in f:
+            score = 2
+        else:
+            continue
+        best = score if best is None else min(best, score)
+    return best
+
+
+@router.get("/audio/voices/search", response_model=OpenAIVoicesResponse)
+async def search_voices(
+    q: str = "",
+    language: str | None = None,
+    provider: bool | None = None,
+    limit: int = 20,
+):
+    """Autocomplete/search over the voice catalog — for client voice pickers.
+
+    Query params:
+      - ``q``: free text matched against name / id / engine / language (ranked).
+      - ``language``: ISO filter, e.g. ``fr`` (also matches language-agnostic voices? no — exact).
+      - ``provider``: ``true`` = cloud only, ``false`` = local only, omit = both.
+      - ``limit``: max results (default 20).
+
+    Filtering/ranking is done server-side so a downstream app can hit this on
+    each keystroke without pulling the whole catalog.
+    """
+    catalog = _build_voice_catalog()
+    limit = max(1, min(limit, 200))
+
+    if provider is not None:
+        catalog = [v for v in catalog if v.provider == provider]
+    if language:
+        lang = language.lower()
+        catalog = [v for v in catalog if (v.language or "").lower() == lang]
+
+    query = q.strip().lower()
+    if query:
+        scored = [(s, v) for v in catalog if (s := _voice_match_score(v, query)) is not None]
+        scored.sort(key=lambda sv: (sv[0], (sv[1].name or sv[1].id).lower()))
+        result = [v for _s, v in scored]
+    else:
+        result = sorted(catalog, key=lambda v: (v.engine, (v.name or v.id).lower()))
+
+    return OpenAIVoicesResponse(voices=result[:limit], transcription_models=[])

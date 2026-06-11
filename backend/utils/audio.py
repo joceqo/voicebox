@@ -2,10 +2,65 @@
 Audio processing utilities.
 """
 
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import soundfile as sf
 import librosa
 from typing import Tuple, Optional
+
+
+def is_soundfile_readable(path: str) -> bool:
+    """Return True if libsndfile (soundfile) can open *path*.
+
+    The ASR backends (onnx-asr/Parakeet, Whisper) read audio with soundfile,
+    which only handles libsndfile formats (WAV/FLAC/OGG). librosa can decode
+    more via its audioread fallback, so a successful ``load_audio`` does NOT
+    imply the backends can read the same file — this probe checks the backend
+    path specifically.
+    """
+    try:
+        sf.info(path)
+        return True
+    except Exception:
+        return False
+
+
+def transcode_to_wav(src_path: str, sample_rate: int = 16000) -> str:
+    """Transcode any ffmpeg-readable audio to a mono 16-bit PCM WAV.
+
+    Browsers' ``MediaRecorder`` emits webm/opus (or ogg), which libsndfile —
+    and thus soundfile/librosa without the optional ``audioread`` fallback —
+    can't read, so uploads fail with "file does not start with RIFF id".
+    ffmpeg decodes virtually any container/codec, so we normalize to a
+    canonical WAV that both Whisper and Parakeet can read directly. Returns
+    the path to a new temp WAV; the caller is responsible for deleting it.
+
+    Raises:
+        RuntimeError: ffmpeg is unavailable, or it failed to decode the input.
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError(
+            "ffmpeg is required to decode this audio format but was not found on PATH"
+        )
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out:
+        out_path = out.name
+    cmd = [
+        ffmpeg, "-y", "-loglevel", "error",
+        "-i", src_path,
+        "-ac", "1", "-ar", str(sample_rate),
+        "-c:a", "pcm_s16le",
+        out_path,
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        Path(out_path).unlink(missing_ok=True)
+        raise RuntimeError(f"ffmpeg failed to decode audio: {proc.stderr.strip()}")
+    return out_path
 
 
 def normalize_audio(

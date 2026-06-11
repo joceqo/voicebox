@@ -5,11 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEngineMetadata } from '@/lib/hooks/useEngineCatalog';
 import { useProfiles } from '@/lib/hooks/useProfiles';
+import { cn } from '@/lib/utils/cn';
 import { useUIStore } from '@/stores/uiStore';
 import { ProfileCard } from './ProfileCard';
 import { ProfileForm } from './ProfileForm';
 
-export function ProfileList() {
+interface ProfileListProps {
+  /** Render as a single-column stack for the narrow params panel. */
+  compact?: boolean;
+}
+
+export function ProfileList({ compact = false }: ProfileListProps) {
   const { t } = useTranslation();
   const { data: profiles, isLoading, error } = useProfiles();
   const setDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
@@ -84,11 +90,17 @@ export function ProfileList() {
             </CardContent>
           </Card>
         ) : (
-          <div className="flex gap-4 overflow-x-auto p-1 pb-1 lg:grid lg:grid-cols-3 lg:auto-rows-auto lg:overflow-x-visible lg:pb-[150px]">
+          <div
+            className={cn(
+              compact
+                ? 'flex flex-col gap-2 p-1'
+                : 'flex gap-4 overflow-x-auto p-1 pb-1 lg:grid lg:grid-cols-3 lg:auto-rows-auto lg:overflow-x-visible lg:pb-[150px]',
+            )}
+          >
             {sortedProfiles.map((profile) => (
               <div
                 key={profile.id}
-                className="shrink-0 w-[200px] lg:w-auto lg:shrink"
+                className={compact ? '' : 'shrink-0 w-[200px] lg:w-auto lg:shrink'}
                 ref={(el) => {
                   if (el) cardRefs.current.set(profile.id, el);
                   else cardRefs.current.delete(profile.id);

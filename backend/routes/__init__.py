@@ -11,6 +11,7 @@ def register_routers(app: FastAPI) -> None:
     from .generations import router as generations_router
     from .history import router as history_router
     from .transcription import router as transcription_router
+    from .live_transcription import router as live_transcription_router
     from .llm import router as llm_router
     from .captures import router as captures_router
     from .stories import router as stories_router
@@ -26,6 +27,7 @@ def register_routers(app: FastAPI) -> None:
     from .engines import router as engines_router
     from .openai_compat import router as openai_router
     from .reader import router as reader_router
+    from .providers import router as providers_router
 
     app.include_router(health_router)
     app.include_router(profiles_router)
@@ -33,6 +35,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(generations_router)
     app.include_router(history_router)
     app.include_router(transcription_router)
+    app.include_router(live_transcription_router)
     app.include_router(llm_router)
     app.include_router(captures_router)
     app.include_router(stories_router)
@@ -48,3 +51,4 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(engines_router)
     app.include_router(openai_router)
     app.include_router(reader_router)
+    app.include_router(providers_router)

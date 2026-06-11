@@ -85,7 +85,7 @@ class GenerationRequest(BaseModel):
     seed: Optional[int] = Field(None, ge=0)
     model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B|1B|3B)$")
     instruct: Optional[str] = Field(None, max_length=500)
-    engine: Optional[str] = Field(default="qwen", pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro|supertonic|kyutai_pocket)$")
+    engine: Optional[str] = Field(default="supertonic", pattern="^[a-z0-9_]+$")
     personality: bool = Field(
         default=False,
         description="When true and the profile has a personality prompt, the input text is rewritten in-character before TTS.",
@@ -113,7 +113,7 @@ class QuickGenerationRequest(BaseModel):
 
     text: str = Field(..., min_length=1, max_length=50000)
     engine: str = Field(
-        ..., pattern="^(qwen_custom_voice|kokoro|supertonic|kyutai_pocket)$",
+        ..., pattern="^[a-z0-9_]+$",
         description="A preset-voice engine. Cloning engines are not supported by /generate/quick.",
     )
     voice_id: str = Field(..., min_length=1, max_length=100)
@@ -268,14 +268,14 @@ class CaptureRefineRequest(BaseModel):
 class CaptureRetranscribeRequest(BaseModel):
     """Request to re-run STT on a capture's audio with a different model."""
 
-    model: Optional[str] = Field(None, pattern="^(base|small|medium|large|turbo)$")
+    model: Optional[str] = Field(None, pattern="^(base|small|medium|large|turbo|parakeet|parakeet-v3)$")
     language: Optional[str] = Field(None, pattern="^(en|zh|ja|ko|de|fr|ru|pt|es|it)$")
 
 
 class CaptureSettingsResponse(BaseModel):
     """Server-persisted defaults for the capture / refine flow."""
 
-    stt_model: str = Field(default="turbo", pattern="^(base|small|medium|large|turbo)$")
+    stt_model: str = Field(default="parakeet-v3", pattern="^(base|small|medium|large|turbo|parakeet|parakeet-v3)$")
     language: str = Field(default="auto")
     auto_refine: bool = True
     llm_model: str = Field(default="0.6B", pattern="^(0\\.6B|1\\.7B|4B)$")
@@ -299,7 +299,7 @@ class CaptureSettingsResponse(BaseModel):
 class CaptureSettingsUpdate(BaseModel):
     """Partial update for capture settings — every field is optional."""
 
-    stt_model: Optional[str] = Field(default=None, pattern="^(base|small|medium|large|turbo)$")
+    stt_model: Optional[str] = Field(default=None, pattern="^(base|small|medium|large|turbo|parakeet|parakeet-v3)$")
     language: Optional[str] = None
     auto_refine: Optional[bool] = None
     llm_model: Optional[str] = Field(default=None, pattern="^(0\\.6B|1\\.7B|4B)$")
@@ -344,7 +344,7 @@ class MCPClientBindingResponse(BaseModel):
     profile_id: Optional[str] = None
     default_engine: Optional[str] = Field(
         None,
-        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro|supertonic|kyutai_pocket)$",
+        pattern="^[a-z0-9_]+$",
     )
     default_personality: bool = False
     last_seen_at: Optional[datetime] = None
@@ -363,7 +363,7 @@ class MCPClientBindingUpsert(BaseModel):
     profile_id: Optional[str] = None
     default_engine: Optional[str] = Field(
         None,
-        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro|supertonic|kyutai_pocket)$",
+        pattern="^[a-z0-9_]+$",
     )
     default_personality: bool = False
 
@@ -382,7 +382,7 @@ class SpeakRequest(BaseModel):
     )
     engine: Optional[str] = Field(
         None,
-        pattern="^(qwen|qwen_custom_voice|luxtts|chatterbox|chatterbox_turbo|tada|kokoro|supertonic|kyutai_pocket)$",
+        pattern="^[a-z0-9_]+$",
     )
     personality: Optional[bool] = Field(
         None,
@@ -822,6 +822,39 @@ class AvailableEffectsResponse(BaseModel):
     effects: List[AvailableEffect]
 
 
+class ProviderKeyUpsert(BaseModel):
+    """Set or replace the API key for an upstream voice provider."""
+
+    api_key: str = Field(..., min_length=1, max_length=500)
+
+
+class ProviderModelInfo(BaseModel):
+    """A model a provider exposes once its key is configured."""
+
+    id: str  # the model string a client passes, e.g. "mistral/voxtral-mini-tts-2603"
+    kind: str = Field(..., pattern=r"^(tts|stt)$")
+    label: str
+
+
+class ProviderStatus(BaseModel):
+    """A provider's catalog + whether a key is stored for it."""
+
+    provider: str  # registry key, e.g. "mistral"
+    name: str  # display name
+    configured: bool
+    masked_key: Optional[str] = None  # e.g. "sk-…a1b2", never the full key
+    models: list[ProviderModelInfo]
+
+
+class ProviderListResponse(BaseModel):
+    providers: list[ProviderStatus]
+
+
+class ProviderValidateResponse(BaseModel):
+    valid: bool
+    detail: Optional[str] = None
+
+
 class OpenAISpeechRequest(BaseModel):
     """OpenAI-compatible ``POST /v1/audio/speech`` request body.
 
@@ -834,6 +867,9 @@ class OpenAISpeechRequest(BaseModel):
     voice: str = Field(default="alloy", max_length=100)
     response_format: str = Field(default="wav", pattern=r"^(wav|pcm|mp3|opus|aac|flac)$")
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
+    # When true and the model targets a provider that supports streaming, audio
+    # is relayed chunk-by-chunk (low time-to-first-audio) instead of buffered.
+    stream: bool = Field(default=False)
     # Voicebox extension (not part of the OpenAI spec): an optional explicit
     # language hint (ISO code, e.g. "en", "fr"). When omitted, the language is
     # inferred from the selected voice, falling back to English. Engines whose

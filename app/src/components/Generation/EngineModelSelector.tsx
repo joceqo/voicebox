@@ -95,7 +95,7 @@ export function EngineModelSelector({ form, compact, selectedProfile }: EngineMo
 
   const engineOptions = useMemo(() => buildEngineOptions(ttsEngines), [ttsEngines]);
 
-  const engine = form.watch('engine') || 'qwen';
+  const engine = form.watch('engine') || 'supertonic';
   const modelSize = form.watch('modelSize');
   const selectValue = getSelectValue(engine, modelSize, ttsByEngine);
 

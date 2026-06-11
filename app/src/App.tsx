@@ -265,7 +265,7 @@ function MainApp() {
             </div>
             <img
               src={voiceboxLogo}
-              alt="Voicebox"
+              alt="VoiceStudio"
               className="w-48 h-48 object-contain animate-fade-in-scale relative z-10"
             />
           </div>

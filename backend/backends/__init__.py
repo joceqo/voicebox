@@ -968,6 +968,19 @@ def get_tts_backend_for_engine(engine: str) -> TTSBackend:
 
         factory = _TTS_BACKEND_FACTORIES.get(engine)
         if factory is None:
+            # Upstream provider engines (e.g. "mistral") aren't in the local
+            # factory map — back them with an HTTP adapter so they flow through
+            # the same generation pipeline as local engines.
+            from ..services.providers import get_provider
+
+            provider = get_provider(engine)
+            if provider is not None:
+                from ..services.providers.tts_backend import ProviderTTSBackend
+
+                backend = ProviderTTSBackend(provider)
+                _tts_backends[engine] = backend
+                return backend
+
             raise ValueError(
                 f"Unknown TTS engine: {engine}. Supported: {list(TTS_ENGINES.keys())}"
             )

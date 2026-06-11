@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMatchRoute } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Dices, Loader2, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react';
+import { Dices, Loader2, Pause, Play, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -22,10 +22,13 @@ import {
   useEngineMetadata,
 } from '@/lib/hooks/useEngineCatalog';
 import { useGenerationForm } from '@/lib/hooks/useGenerationForm';
+import { useStreamingTTS } from '@/lib/hooks/useStreamingTTS';
+import { useGenerationFormContext } from './GenerationFormContext';
 import { useProfile, useProfiles } from '@/lib/hooks/useProfiles';
 import { useStory } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
 import { useGenerationStore } from '@/stores/generationStore';
+import { usePlayerStore } from '@/stores/playerStore';
 import { useStoryStore } from '@/stores/storyStore';
 import { useUIStore } from '@/stores/uiStore';
 import { EngineModelSelector } from './EngineModelSelector';
@@ -44,6 +47,8 @@ export function FloatingGenerateBox({
   const selectedProfileId = useUIStore((state) => state.selectedProfileId);
   const setSelectedProfileId = useUIStore((state) => state.setSelectedProfileId);
   const setSelectedEngine = useUIStore((state) => state.setSelectedEngine);
+  const streamingPreview = useUIStore((state) => state.streamingPreview);
+  const { streamForProfile, isStreaming, isPaused, pause, resume } = useStreamingTTS();
   const { data: selectedProfile } = useProfile(selectedProfileId || '');
   const { data: profiles } = useProfiles();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -84,7 +89,11 @@ export function FloatingGenerateBox({
 
   const engineMetadata = useEngineMetadata();
 
-  const { form, handleSubmit, isPending } = useGenerationForm({
+  // Keep both hook calls unconditional (rules of hooks).
+  // ctx is provided by GenerationFormProvider on the index route;
+  // fallback is used everywhere else (QuickTab, StoriesTab, etc.).
+  const ctx = useGenerationFormContext();
+  const fallback = useGenerationForm({
     onSuccess: async (generationId) => {
       setIsExpanded(false);
       // Defer the story add until TTS completes -- useGenerationProgress handles it
@@ -103,6 +112,7 @@ export function FloatingGenerateBox({
       return preset?.effects_chain;
     },
   });
+  const { form, handleSubmit, isPending } = ctx ?? fallback;
 
   // Click away handler to collapse the box
   useEffect(() => {
@@ -245,20 +255,54 @@ export function FloatingGenerateBox({
   }, [isExpanded]);
 
   async function onSubmit(data: Parameters<typeof handleSubmit>[0]) {
+    // Low-latency streaming preview for preset/provider voices (plays via Web
+    // Audio as chunks arrive; preview-only, not saved to history). Falls back
+    // to normal generation if streaming isn't applicable or fails.
+    if (
+      streamingPreview &&
+      selectedProfile?.voice_type === 'preset' &&
+      selectedProfile.preset_voice_id &&
+      data.engine
+    ) {
+      try {
+        await streamForProfile({
+          engine: data.engine,
+          voiceId: selectedProfile.preset_voice_id,
+          input: data.text,
+          language: data.language,
+          // Once streamed, load the assembled clip into the player bar so it
+          // can be replayed/scrubbed (the live stream itself is one-shot).
+          onComplete: (wavUrl) => {
+            usePlayerStore
+              .getState()
+              .setAudio(
+                wavUrl,
+                `stream-${Date.now()}`,
+                selectedProfileId,
+                selectedProfile?.name ?? data.text.slice(0, 40),
+              );
+          },
+        });
+        return;
+      } catch {
+        // streaming unavailable → fall through to the normal /generate path
+      }
+    }
     await handleSubmit(data, selectedProfileId);
   }
 
   return (
     <motion.div
       ref={containerRef}
-      className={cn(
-        'fixed',
-        isStoriesRoute
-          ? // Aligned with StoryContent: sidebar + list width + gap (tab bleeds with -mx-8)
-            'left-[calc(5rem+360px+1.5rem)] right-8'
-          : 'left-[calc(5rem+2rem)] right-8 lg:right-auto lg:w-[calc((100%-5rem-4rem)/2-1rem)]',
-      )}
+      className="fixed"
       style={{
+        // Use --build-nav-w / --params-w CSS vars set by ConsoleShell; fall back
+        // to 5rem (icon sidebar) / 0px. --params-w reserves the right params
+        // panel (260px on the index route) so the box doesn't slide under it.
+        left: isStoriesRoute
+          ? 'calc(var(--build-nav-w, 5rem) + 360px + 1.5rem)'
+          : 'calc(var(--build-nav-w, 5rem) + 2rem)',
+        right: 'calc(var(--params-w, 0px) + 2rem)',
         // On stories route: offset by track editor height when visible
         // On other routes: offset by audio player height when visible
         bottom: hasTrackEditor
@@ -470,6 +514,21 @@ export function FloatingGenerateBox({
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Pause/resume the live stream (seek/rewind comes from the
+                    player bar once the clip finishes). */}
+                {isStreaming && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    onClick={() => (isPaused ? resume() : pause())}
+                    className="h-10 w-10 rounded-full"
+                    aria-label={isPaused ? t('generation.button.resume', 'Resume') : t('generation.button.pause', 'Pause')}
+                  >
+                    {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  </Button>
+                )}
 
                 <div className="group relative">
                   <Button
