@@ -386,10 +386,14 @@ def _get_voxtral_configs() -> list[ModelConfig]:
     return [
         ModelConfig(
             model_name="voxtral-tts",
-            display_name="Voxtral TTS (MLX 4-bit, 9 langs, 20 preset voices)",
+            # Must match VoxtralTTSBackend.VOXTRAL_HF_REPO (bf16) — the backend
+            # loads bf16 for cleaner output, so download + cache-status detection
+            # must point at the SAME repo (the 4bit mismatch left status stuck at
+            # 100% "unknown" because get_model_status looked up a repo never fetched).
+            display_name="Voxtral TTS (MLX bf16, 9 langs, 20 preset voices)",
             engine="voxtral",
-            hf_repo_id="mlx-community/Voxtral-4B-TTS-2603-mlx-4bit",
-            size_mb=2500,
+            hf_repo_id="mlx-community/Voxtral-4B-TTS-2603-mlx-bf16",
+            size_mb=7500,
             # CC BY-NC 4.0 (non-commercial) weights from Mistral.
             languages=["en", "fr", "es", "de", "it", "pt", "nl", "ar", "hi"],
         ),
