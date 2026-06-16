@@ -132,9 +132,15 @@ class ParakeetSTTBackend:
         await self.load_model_async(model_size)
 
         def _transcribe_sync() -> str:
-            # onnx-asr accepts a WAV file path directly and handles reading +
-            # resampling internally; recognize() returns the transcript string.
-            result = self._model.recognize(audio_path)
+            # onnx-asr's file reader does NOT resample reliably — feeding it a
+            # non-16kHz WAV (e.g. 24kHz TTS output) triggers a bogus reshape
+            # ("cannot reshape array ... into shape (1073741823, 1)"). So we
+            # load + resample to 16kHz mono float32 ourselves and pass the array
+            # with an explicit sample_rate. recognize() returns the transcript.
+            import librosa
+
+            waveform, _ = librosa.load(audio_path, sr=16000, mono=True)
+            result = self._model.recognize(waveform, sample_rate=16000)
             if isinstance(result, str):
                 return result.strip()
             # Defensive: some onnx-asr versions may return a richer object.
