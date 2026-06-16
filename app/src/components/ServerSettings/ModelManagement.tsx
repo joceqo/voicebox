@@ -41,7 +41,12 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
-import type { ActiveDownloadTask, HuggingFaceModelInfo, ModelStatus } from '@/lib/api/types';
+import type {
+  ActiveDownloadTask,
+  HuggingFaceModelInfo,
+  ModelStatus,
+  TTSEngineInfo,
+} from '@/lib/api/types';
 import { useEngineCatalog } from '@/lib/hooks/useEngineCatalog';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
 import { usePlatform } from '@/platform/PlatformContext';
@@ -155,6 +160,10 @@ export function ModelManagement() {
   // Modal state
   const [selectedModel, setSelectedModel] = useState<ModelStatus | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // License-gate dialog (e.g. Voxtral CC BY-NC 4.0). Data-driven from the
+  // engine catalog so it works offline — never gated on async HF cardData.
+  const [licenseGateModel, setLicenseGateModel] = useState<ModelStatus | null>(null);
 
   const { data: modelStatus, isLoading } = useQuery({
     queryKey: ['modelStatus'],
@@ -413,16 +422,18 @@ export function ModelManagement() {
     setDetailOpen(true);
   };
 
-  // Group models by the engine they belong to. The set of TTS / LLM model
-  // names is whatever the server's /engines registry declares; the model
-  // status feed itself just lists what's installable on disk.
-  const ttsModelNames = useMemo(
-    () =>
-      new Set(
-        engineCatalog?.tts.flatMap((e) => e.models.map((m) => m.model_name)) ?? [],
-      ),
-    [engineCatalog],
-  );
+  // Map each TTS model name to its engine entry. Driven purely by the
+  // server's /engines registry — ModelStatus rows carry no engine field.
+  const ttsEngineByModel = useMemo(() => {
+    const map = new Map<string, TTSEngineInfo>();
+    for (const engine of engineCatalog?.tts ?? []) {
+      for (const m of engine.models) {
+        map.set(m.model_name, engine);
+      }
+    }
+    return map;
+  }, [engineCatalog]);
+
   const llmModelNames = useMemo(
     () =>
       new Set(
@@ -430,28 +441,42 @@ export function ModelManagement() {
       ),
     [engineCatalog],
   );
-  const voiceModels = modelStatus?.models.filter((m) => ttsModelNames.has(m.model_name)) ?? [];
   const whisperModels = modelStatus?.models.filter((m) => m.model_name.startsWith('whisper')) ?? [];
   const llmModels = modelStatus?.models.filter((m) => llmModelNames.has(m.model_name)) ?? [];
 
-  // Build sections
-  const sections: { label: string; description: string; models: ModelStatus[] }[] = [
-    {
-      label: t('models.sections.voiceGeneration'),
-      description: t('models.sectionDescriptions.voiceGeneration'),
-      models: voiceModels,
-    },
-    {
-      label: t('models.sections.transcription'),
-      description: t('models.sectionDescriptions.transcription'),
-      models: whisperModels,
-    },
-    {
-      label: t('models.sections.languageModels'),
-      description: t('models.sectionDescriptions.languageModels'),
-      models: llmModels,
-    },
+  // One sub-group per TTS engine, in registry order. Engines with no matching
+  // rows on disk are skipped so we don't render empty groups.
+  type Section = {
+    label: string;
+    models: ModelStatus[];
+    description?: string;
+    engine?: TTSEngineInfo;
+  };
+  const ttsSections: Section[] = (engineCatalog?.tts ?? []).flatMap((engine) => {
+    const names = new Set(engine.models.map((m) => m.model_name));
+    const models = modelStatus?.models.filter((m) => names.has(m.model_name)) ?? [];
+    if (models.length === 0) return [];
+    return [{ label: engine.display_name, description: engine.description, engine, models }];
+  });
+
+  // Build sections: per-engine TTS groups, then STT (whisper), then LLM.
+  const sections: Section[] = [
+    ...ttsSections,
+    { label: t('models.sections.transcription'), models: whisperModels },
+    { label: t('models.sections.languageModels'), models: llmModels },
   ];
+
+  // Route a download through the license gate when the model's engine carries
+  // a non-commercial license; otherwise download directly.
+  const requestDownload = (model: ModelStatus) => {
+    const engine = ttsEngineByModel.get(model.model_name);
+    // Gate any non-commercial Creative Commons license (cc-by-nc, cc-by-nc-sa, …).
+    if (engine?.license?.startsWith('cc-by-nc')) {
+      setLicenseGateModel(model);
+      return;
+    }
+    handleDownload(model.model_name);
+  };
 
   // Get detail modal state for selected model
   const selectedState = selectedModel ? getModelState(selectedModel) : null;
@@ -560,10 +585,34 @@ export function ModelManagement() {
         <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
           {sections.map((section) => (
             <div key={section.label}>
-              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">
-                {section.label}
-              </h2>
-              <p className="text-xs text-muted-foreground/60 mb-1.5 px-1">{section.description}</p>
+              <div className="mb-1 px-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {section.label}
+                  </h2>
+                  {section.engine?.voice_mode && (
+                    <Badge variant="outline" className="text-[10px] h-4">
+                      {section.engine.voice_mode}
+                    </Badge>
+                  )}
+                  {section.engine?.english_only && (
+                    <Badge variant="outline" className="text-[10px] h-4">
+                      EN
+                    </Badge>
+                  )}
+                  {section.engine?.license && (
+                    <Badge variant="outline" className="text-[10px] h-4 flex items-center gap-1">
+                      <Scale className="h-3 w-3" />
+                      {formatLicense(section.engine.license)}
+                    </Badge>
+                  )}
+                </div>
+                {section.description && (
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                    {section.description}
+                  </p>
+                )}
+              </div>
               <div className="border rounded-lg divide-y overflow-hidden">
                 {section.models.map((model) => {
                   const { isDownloading, hasError } = getModelState(model);
@@ -841,7 +890,7 @@ export function ModelManagement() {
                     <>
                       <Button
                         size="sm"
-                        onClick={() => handleDownload(freshSelectedModel.model_name)}
+                        onClick={() => requestDownload(freshSelectedModel)}
                         variant="outline"
                         className="flex-1"
                       >
@@ -939,7 +988,7 @@ export function ModelManagement() {
                   ) : (
                     <Button
                       size="sm"
-                      onClick={() => handleDownload(freshSelectedModel.model_name)}
+                      onClick={() => requestDownload(freshSelectedModel)}
                       className="flex-1"
                     >
                       <Download className="h-4 w-4 mr-2" />
@@ -991,6 +1040,50 @@ export function ModelManagement() {
               ) : (
                 t('common.delete')
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* License-gate dialog — shown before downloading non-commercial
+          (CC BY-NC 4.0) models such as Voxtral. Data-driven via the engine
+          catalog, so it works offline. */}
+      <AlertDialog
+        open={!!licenseGateModel}
+        onOpenChange={(open) => !open && setLicenseGateModel(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('models.licenseDialog.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <Trans
+                i18nKey="models.licenseDialog.body"
+                components={{
+                  strong: <strong />,
+                  link: (
+                    // biome-ignore lint/a11y/useAnchorContent: content injected by Trans
+                    <a
+                      href="https://creativecommons.org/licenses/by-nc/4.0/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    />
+                  ),
+                }}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (licenseGateModel) {
+                  handleDownload(licenseGateModel.model_name);
+                }
+                setLicenseGateModel(null);
+              }}
+            >
+              {t('models.licenseDialog.action')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

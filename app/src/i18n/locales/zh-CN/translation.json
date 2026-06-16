@@ -1217,6 +1217,11 @@
       "sizeNote": "这将释放 {{size}} 磁盘空间。如果您想再次使用该模型,需要重新下载。",
       "deleting": "删除中…"
     },
+    "licenseDialog": {
+      "title": "非商业许可",
+      "body": "该模型基于<strong>CC BY-NC 4.0</strong>许可发布，仅允许非商业用途。下载即表示您同意其条款。请参阅<link>creativecommons.org/licenses/by-nc/4.0</link>。",
+      "action": "同意并下载"
+    },
     "migrateDialog": {
       "title": "移动模型到新位置?",
       "description": "在模型迁移到新文件夹期间,服务器将关闭。迁移完成后会自动重启。",

@@ -1245,6 +1245,11 @@
       "sizeNote": "This will free up {{size}} of disk space. The model will need to be re-downloaded if you want to use it again.",
       "deleting": "Deleting…"
     },
+    "licenseDialog": {
+      "title": "Non-commercial license",
+      "body": "This model is released under the <strong>CC BY-NC 4.0</strong> license, which permits non-commercial use only. By downloading, you agree to its terms. See <link>creativecommons.org/licenses/by-nc/4.0</link>.",
+      "action": "Agree & Download"
+    },
     "migrateDialog": {
       "title": "Move models to new location?",
       "description": "The server will shut down while models are being moved to the new folder. It will restart automatically once the migration is complete.",
