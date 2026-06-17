@@ -47,6 +47,52 @@ def backfill_generation_versions(SessionLocal, Generation, GenerationVersion) ->
         db.close()
 
 
+def seed_preset_voices(SessionLocal, VoiceProfile) -> None:
+    """Ensure the built-in Supertonic preset voices exist as selectable profiles.
+
+    Supertonic is preset-only and ships 10 voices (M1–M5, F1–F5). The main
+    TTS screen lists DB profiles, so without these the default engine would
+    show no compatible voice out of the box. We materialize each preset voice
+    as a locked preset profile. Idempotent: keyed on ``preset_voice_id`` so it
+    only creates what's missing and never duplicates on subsequent startups.
+    """
+    from ..backends.supertonic_backend import SUPERTONIC_VOICES
+
+    db = SessionLocal()
+    try:
+        existing = {
+            row[0]
+            for row in db.query(VoiceProfile.preset_voice_id)
+            .filter(
+                VoiceProfile.voice_type == "preset",
+                VoiceProfile.preset_engine == "supertonic",
+            )
+            .all()
+        }
+        count = 0
+        for vid, name, _gender, _lang in SUPERTONIC_VOICES:
+            if vid in existing:
+                continue
+            db.add(
+                VoiceProfile(
+                    id=str(uuid.uuid4()),
+                    name=f"{name} (Supertonic)",
+                    description="Built-in Supertonic preset voice.",
+                    language="en",
+                    voice_type="preset",
+                    preset_engine="supertonic",
+                    preset_voice_id=vid,
+                    default_engine="supertonic",
+                )
+            )
+            count += 1
+        if count > 0:
+            db.commit()
+            logger.info("Seeded %d Supertonic preset voice profiles", count)
+    finally:
+        db.close()
+
+
 def seed_builtin_presets(SessionLocal, EffectPreset) -> None:
     """Ensure built-in effect presets exist in the database."""
     from ..utils.effects import BUILTIN_PRESETS

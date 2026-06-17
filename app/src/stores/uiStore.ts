@@ -61,6 +61,15 @@ interface UIStore {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  // Console shell mode
+  simpleMode: boolean;
+  setSimpleMode: (b: boolean) => void;
+  toggleSimpleMode: () => void;
+
+  // Low-latency streaming preview (provider/preset voices); preview-only, no history
+  streamingPreview: boolean;
+  setStreamingPreview: (b: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -80,7 +89,7 @@ export const useUIStore = create<UIStore>()(
       selectedProfileId: null,
       setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
-      selectedEngine: 'qwen',
+      selectedEngine: 'supertonic',
       setSelectedEngine: (engine) => set({ selectedEngine: engine }),
 
       selectedVoiceId: null,
@@ -94,12 +103,21 @@ export const useUIStore = create<UIStore>()(
         set({ theme });
         applyTheme(theme);
       },
+
+      simpleMode: false,
+      setSimpleMode: (b) => set({ simpleMode: b }),
+      toggleSimpleMode: () => set((s) => ({ simpleMode: !s.simpleMode })),
+
+      streamingPreview: false,
+      setStreamingPreview: (b) => set({ streamingPreview: b }),
     }),
     {
       name: 'voicebox-ui',
       partialize: (state) => ({
         selectedProfileId: state.selectedProfileId,
         theme: state.theme,
+        simpleMode: state.simpleMode,
+        streamingPreview: state.streamingPreview,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);

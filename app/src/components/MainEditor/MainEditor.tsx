@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { ProfileList } from '@/components/VoiceProfiles/ProfileList';
 
 import { useImportProfile } from '@/lib/hooks/useProfiles';
 import { cn } from '@/lib/utils/cn';
@@ -24,7 +23,6 @@ export function MainEditor() {
   const { t } = useTranslation();
   const audioUrl = usePlayerStore((state) => state.audioUrl);
   const isPlayerVisible = !!audioUrl;
-  const scrollRef = useRef<HTMLDivElement>(null);
   const setDialogOpen = useUIStore((state) => state.setProfileDialogOpen);
   const importProfile = useImportProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,46 +76,32 @@ export function MainEditor() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-6 h-full min-h-0 overflow-hidden relative">
-      <div className="flex flex-col min-h-0 overflow-hidden relative lg:overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-background to-transparent z-0 pointer-events-none" />
-
-        <div className="absolute top-0 left-0 right-0 z-10">
-          <div className="flex items-center justify-between mb-4 px-1">
-            <h2 className="text-2xl font-bold">Voicebox</h2>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleImportClick}>
-                <Upload className="mr-2 h-4 w-4" />
-                {t('main.importVoice')}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".voicebox.zip"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <Button onClick={() => setDialogOpen(true)}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                {t('main.createVoice')}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div
-          ref={scrollRef}
-          className={cn('flex-1 min-h-0 overflow-y-auto pt-14 pb-4', isPlayerVisible && 'lg:pb-32')}
-        >
-          <div className="flex flex-col gap-6">
-            <div className="shrink-0 flex flex-col">
-              <ProfileList />
-            </div>
-          </div>
+    <div className="flex flex-col h-full min-h-0 overflow-hidden relative">
+      {/* Slim header — title lives in the nav, so this is just the section label + actions */}
+      <div className="flex items-center justify-between pt-4 pb-3 px-1 shrink-0">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/60">
+          {t('history.title', 'History')}
+        </h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleImportClick}>
+            <Upload className="mr-2 h-4 w-4" />
+            {t('main.importVoice')}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".voicebox.zip"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <Button size="sm" onClick={() => setDialogOpen(true)}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            {t('main.createVoice')}
+          </Button>
         </div>
       </div>
 
-      <div className="flex flex-col min-h-0 overflow-hidden">
+      <div className={cn('flex-1 min-h-0 overflow-hidden', isPlayerVisible && 'lg:pb-32')}>
         <HistoryTable />
       </div>
 

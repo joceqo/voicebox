@@ -60,8 +60,13 @@ async def transcribe_upload(
         ValueError: the resolved model size is not a known Whisper size.
         ModelDownloadingError: the size is downloading; the caller should retry.
     """
-    from ..utils.audio import load_audio
-    from ..backends import WHISPER_HF_REPOS, resolve_stt_model, get_parakeet_backend
+    from ..utils.audio import load_audio, transcode_to_wav, is_soundfile_readable
+    from ..backends import (
+        WHISPER_HF_REPOS,
+        resolve_stt_model,
+        get_parakeet_backend,
+        get_voxtral_stt_backend,
+    )
     from .task_queue import create_background_task
     from ..utils.tasks import get_task_manager
 
@@ -70,8 +75,20 @@ async def transcribe_upload(
             tmp.write(chunk)
         tmp_path = tmp.name
 
+    # The ASR backends (onnx-asr/Parakeet, Whisper) read the file with
+    # soundfile, which only understands libsndfile formats (WAV/FLAC/OGG).
+    # Browser MediaRecorder uploads are webm/opus and fail with "file does not
+    # start with RIFF id". librosa's load() would mask this (it has an
+    # audioread fallback the backends don't), so probe with soundfile directly
+    # and transcode to a canonical WAV via ffmpeg when it can't read the input.
+    transcoded_path: str | None = None
     try:
-        audio, sr = await asyncio.to_thread(load_audio, tmp_path)
+        decode_path = tmp_path
+        if not await asyncio.to_thread(is_soundfile_readable, tmp_path):
+            transcoded_path = await asyncio.to_thread(transcode_to_wav, tmp_path)
+            decode_path = transcoded_path
+
+        audio, sr = await asyncio.to_thread(load_audio, decode_path)
         duration = len(audio) / sr
 
         # Dispatch: Parakeet is opt-in by model name; Whisper is the default.
@@ -81,7 +98,15 @@ async def transcribe_upload(
             # worker thread; we accept first-call latency rather than mirroring
             # the Whisper background-download / ModelDownloadingError dance.
             parakeet = get_parakeet_backend()
-            text = await parakeet.transcribe(tmp_path, language, normalized_id)
+            text = await parakeet.transcribe(decode_path, language, normalized_id)
+            return text, duration
+
+        if engine == "voxtral_stt":
+            # Local Voxtral Mini Realtime via the Rust CLI. No background
+            # download dance: the binary + GGUF weights are installed manually,
+            # and the backend raises an actionable error if they're missing.
+            voxtral = get_voxtral_stt_backend()
+            text = await voxtral.transcribe(decode_path, language, normalized_id)
             return text, duration
 
         whisper_model = get_whisper_model()
@@ -107,7 +132,9 @@ async def transcribe_upload(
             create_background_task(download_whisper_background())
             raise ModelDownloadingError(size)
 
-        text = await whisper_model.transcribe(tmp_path, language, size)
+        text = await whisper_model.transcribe(decode_path, language, size)
         return text, duration
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+        if transcoded_path:
+            Path(transcoded_path).unlink(missing_ok=True)

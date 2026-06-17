@@ -72,7 +72,7 @@ class Generation(Base):
     duration = Column(Float, nullable=True)
     seed = Column(Integer)
     instruct = Column(Text)
-    engine = Column(String, default="qwen")
+    engine = Column(String, default="supertonic")
     model_size = Column(String, nullable=True)
     status = Column(String, default="completed")
     error = Column(Text, nullable=True)
@@ -195,7 +195,7 @@ class CaptureSettings(Base):
     __tablename__ = "capture_settings"
 
     id = Column(Integer, primary_key=True, default=1)
-    stt_model = Column(String, nullable=False, default="turbo")
+    stt_model = Column(String, nullable=False, default="parakeet-v3")
     language = Column(String, nullable=False, default="auto")
     auto_refine = Column(Boolean, nullable=False, default=True)
     llm_model = Column(String, nullable=False, default="0.6B")
@@ -231,6 +231,24 @@ class GenerationSettings(Base):
     crossfade_ms = Column(Integer, nullable=False, default=50)
     normalize_audio = Column(Boolean, nullable=False, default=True)
     autoplay_on_generate = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ProviderCredential(Base):
+    """Stored API key for an upstream voice provider (e.g. Mistral).
+
+    Voicebox can proxy ``/v1/audio/*`` requests to frontier providers so client
+    apps integrate Voicebox once and reach many backends just by changing the
+    model string. One row per provider. The key lives in the local SQLite file
+    in plaintext — acceptable for a single-user localhost desktop app; revisit
+    if Voicebox is ever exposed as a shared service.
+    """
+
+    __tablename__ = "provider_credentials"
+
+    provider = Column(String, primary_key=True)  # registry key, e.g. "mistral"
+    api_key = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

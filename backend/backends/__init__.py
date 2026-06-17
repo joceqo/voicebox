@@ -203,6 +203,7 @@ _tts_backends: dict[str, TTSBackend] = {}
 _tts_backends_lock = threading.Lock()
 _stt_backend: Optional[STTBackend] = None
 _parakeet_backend: Optional[STTBackend] = None
+_voxtral_stt_backend: Optional[STTBackend] = None
 _llm_backends: dict[str, LLMBackend] = {}
 _llm_backends_lock = threading.Lock()
 
@@ -454,20 +455,43 @@ def _get_parakeet_configs() -> list[ModelConfig]:
     ]
 
 
+def _get_voxtral_stt_configs() -> list[ModelConfig]:
+    """Return the Voxtral Mini Realtime STT config (local Rust binary, Q4 GGUF)."""
+    from .voxtral_stt_backend import VOXTRAL_STT_HF_REPO, VOXTRAL_STT_LANGUAGES
+
+    return [
+        ModelConfig(
+            model_name="voxtral-realtime",
+            display_name="Voxtral Mini Realtime (Local, Q4 GGUF, Metal)",
+            engine="voxtral_stt",
+            hf_repo_id=VOXTRAL_STT_HF_REPO,
+            model_size="realtime",
+            size_mb=2400,
+            languages=VOXTRAL_STT_LANGUAGES,
+        ),
+    ]
+
+
 # Model-name set used to route STT requests to the Parakeet backend instead
 # of Whisper. Accepts the canonical config name plus the bare engine id.
 STT_ENGINE_IDS = {"parakeet-v3", "parakeet"}
+
+# Model-name set routing to the local Voxtral Mini Realtime backend.
+VOXTRAL_STT_ENGINE_IDS = {"voxtral-realtime", "voxtral-stt", "voxtral_stt"}
 
 
 def resolve_stt_model(model_id: Optional[str]) -> Tuple[str, Optional[str]]:
     """Resolve an STT model id to ``(engine, normalized_id)``.
 
     Whisper is the default: a Whisper size, a ``whisper-*`` name, or ``None``
-    all route to the Whisper backend. Anything in :data:`STT_ENGINE_IDS`
-    routes to Parakeet (normalized to ``"parakeet-v3"``).
+    all route to the Whisper backend. Ids in :data:`STT_ENGINE_IDS` route to
+    Parakeet; ids in :data:`VOXTRAL_STT_ENGINE_IDS` route to the local Voxtral
+    Mini Realtime backend.
     """
     if model_id and model_id in STT_ENGINE_IDS:
         return "parakeet", "parakeet-v3"
+    if model_id and model_id in VOXTRAL_STT_ENGINE_IDS:
+        return "voxtral_stt", "voxtral-realtime"
     return "whisper", model_id
 
 
@@ -529,6 +553,7 @@ def get_all_model_configs() -> list[ModelConfig]:
         configs.extend(entry.model_configs())
     configs.extend(_get_whisper_configs())
     configs.extend(_get_parakeet_configs())
+    configs.extend(_get_voxtral_stt_configs())
     for entry in _LLM_REGISTRY:
         configs.extend(entry.model_configs())
     return configs
@@ -551,8 +576,8 @@ def get_llm_model_configs() -> list[ModelConfig]:
 
 
 def get_stt_model_configs() -> list[ModelConfig]:
-    """Return only STT model configs (Whisper + Parakeet)."""
-    return _get_whisper_configs() + _get_parakeet_configs()
+    """Return only STT model configs (Whisper + Parakeet + Voxtral)."""
+    return _get_whisper_configs() + _get_parakeet_configs() + _get_voxtral_stt_configs()
 
 
 # Lookup helpers — these replace the if/elif chains in main.py
@@ -968,6 +993,19 @@ def get_tts_backend_for_engine(engine: str) -> TTSBackend:
 
         factory = _TTS_BACKEND_FACTORIES.get(engine)
         if factory is None:
+            # Upstream provider engines (e.g. "mistral") aren't in the local
+            # factory map — back them with an HTTP adapter so they flow through
+            # the same generation pipeline as local engines.
+            from ..services.providers import get_provider
+
+            provider = get_provider(engine)
+            if provider is not None:
+                from ..services.providers.tts_backend import ProviderTTSBackend
+
+                backend = ProviderTTSBackend(provider)
+                _tts_backends[engine] = backend
+                return backend
+
             raise ValueError(
                 f"Unknown TTS engine: {engine}. Supported: {list(TTS_ENGINES.keys())}"
             )
@@ -1017,6 +1055,22 @@ def get_parakeet_backend() -> STTBackend:
     return _parakeet_backend
 
 
+def get_voxtral_stt_backend() -> STTBackend:
+    """Get or create the local Voxtral Mini Realtime STT backend (singleton).
+
+    Voxtral is opt-in by model name (``voxtral-realtime``); the default STT
+    backend (:func:`get_stt_backend`) remains Whisper.
+    """
+    global _voxtral_stt_backend
+
+    if _voxtral_stt_backend is None:
+        from .voxtral_stt_backend import VoxtralSTTBackend
+
+        _voxtral_stt_backend = VoxtralSTTBackend()
+
+    return _voxtral_stt_backend
+
+
 def get_llm_backend() -> LLMBackend:
     """Get or create the default Qwen3 LLM backend based on platform."""
     return get_llm_backend_for_engine("qwen_llm")
@@ -1046,9 +1100,10 @@ def get_llm_backend_for_engine(engine: str) -> LLMBackend:
 
 def reset_backends():
     """Reset backend instances (useful for testing)."""
-    global _tts_backend, _tts_backends, _stt_backend, _parakeet_backend, _llm_backends
+    global _tts_backend, _tts_backends, _stt_backend, _parakeet_backend, _voxtral_stt_backend, _llm_backends
     _tts_backend = None
     _tts_backends.clear()
     _stt_backend = None
     _parakeet_backend = None
+    _voxtral_stt_backend = None
     _llm_backends.clear()

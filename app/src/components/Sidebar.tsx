@@ -48,7 +48,7 @@ export function Sidebar({ isMacOS }: SidebarProps) {
     >
       {/* Logo */}
       <div className="mb-2">
-        <img src={voiceboxLogo} alt="Voicebox" className="sidebar-logo w-12 h-12 object-contain" />
+        <img src={voiceboxLogo} alt="VoiceStudio" className="sidebar-logo w-12 h-12 object-contain" />
       </div>
 
       {/* Navigation Buttons */}

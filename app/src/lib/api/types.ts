@@ -182,6 +182,9 @@ export interface HistoryListResponse {
 
 export type WhisperModelSize = 'base' | 'small' | 'medium' | 'large' | 'turbo';
 
+/** STT model identifier: a Whisper size, the Parakeet ONNX model, or local Voxtral Realtime. */
+export type SttModel = WhisperModelSize | 'parakeet-v3' | 'voxtral-realtime';
+
 export type Qwen3ModelSize = '0.6B' | '1.7B' | '4B';
 
 export type CaptureSource = 'dictation' | 'recording' | 'file';
@@ -240,12 +243,12 @@ export interface CaptureRefineRequest {
 }
 
 export interface CaptureRetranscribeRequest {
-  model?: WhisperModelSize;
+  model?: SttModel;
   language?: LanguageCode;
 }
 
 export interface CaptureSettings {
-  stt_model: WhisperModelSize;
+  stt_model: SttModel;
   language: string;
   auto_refine: boolean;
   llm_model: Qwen3ModelSize;
@@ -296,7 +299,7 @@ export type GenerationSettingsUpdate = Partial<GenerationSettings>;
 
 export interface TranscriptionRequest {
   language?: LanguageCode;
-  model?: WhisperModelSize;
+  model?: SttModel;
 }
 
 export interface TranscriptionResponse {
@@ -564,4 +567,31 @@ export interface MCPClientBindingUpsert {
 
 export interface MCPClientBindingListResponse {
   items: MCPClientBinding[];
+}
+
+// ── Upstream voice providers (gateway proxy) ─────────────────────────────────
+
+export interface ProviderModelInfo {
+  /** Model string a client passes, e.g. "mistral/voxtral-mini-tts-2603". */
+  id: string;
+  kind: 'tts' | 'stt';
+  label: string;
+}
+
+export interface ProviderStatus {
+  provider: string;
+  name: string;
+  configured: boolean;
+  /** Masked tail of the stored key, e.g. "…a1b2". Never the full key. */
+  masked_key?: string | null;
+  models: ProviderModelInfo[];
+}
+
+export interface ProviderListResponse {
+  providers: ProviderStatus[];
+}
+
+export interface ProviderValidateResponse {
+  valid: boolean;
+  detail?: string | null;
 }

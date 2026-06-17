@@ -193,26 +193,39 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="voicebox.list_profiles",
         description=(
-            "List available voice profiles (both cloned voices and presets). "
-            "Use the returned `name` with voicebox.speak(profile=...)."
+            "List/search available voice profiles (cloned voices, local presets, "
+            "and cloud-provider voices like Mistral). Use the returned `name` with "
+            "voicebox.speak(profile=...). Optional `query` filters by name/engine "
+            "and `language` filters by ISO code (e.g. 'fr') — for voice pickers."
         ),
     )
-    async def voicebox_list_profiles() -> dict[str, Any]:
+    async def voicebox_list_profiles(
+        query: str | None = None,
+        language: str | None = None,
+    ) -> dict[str, Any]:
         db = next(get_db())
         try:
             profiles = await profiles_service.list_profiles(db)
-            return {
-                "profiles": [
+            q = (query or "").strip().lower()
+            lang = (language or "").strip().lower()
+            out = []
+            for p in profiles:
+                engine = getattr(p, "default_engine", None) or getattr(p, "preset_engine", None)
+                if lang and (p.language or "").lower() != lang:
+                    continue
+                if q and q not in p.name.lower() and q not in (engine or "").lower():
+                    continue
+                out.append(
                     {
                         "id": p.id,
                         "name": p.name,
                         "voice_type": p.voice_type,
                         "language": p.language,
+                        "engine": engine,
                         "has_personality": bool(getattr(p, "personality", None)),
                     }
-                    for p in profiles
-                ]
-            }
+                )
+            return {"profiles": out}
         finally:
             db.close()
 
@@ -284,9 +297,29 @@ def _speak_response(
 async def _transcribe_file(
     path: Path, language: str | None, model: str | None
 ) -> dict[str, Any]:
-    from ..backends import WHISPER_HF_REPOS
+    from ..backends import (
+        WHISPER_HF_REPOS,
+        resolve_stt_model,
+        get_parakeet_backend,
+        get_voxtral_stt_backend,
+    )
     from ..services import transcribe as transcribe_service
     from ..utils.audio import load_audio
+
+    # load_audio is sync; keep the event loop responsive.
+    audio, sr = await asyncio.to_thread(load_audio, str(path))
+    duration = len(audio) / sr
+
+    # Dispatch by model name: Parakeet and Voxtral are opt-in; Whisper default.
+    engine, normalized_id = resolve_stt_model(model)
+
+    if engine == "parakeet":
+        text = await get_parakeet_backend().transcribe(str(path), language, normalized_id)
+        return {"text": text, "duration": duration, "language": language, "model": "parakeet-v3"}
+
+    if engine == "voxtral_stt":
+        text = await get_voxtral_stt_backend().transcribe(str(path), language, normalized_id)
+        return {"text": text, "duration": duration, "language": language, "model": "voxtral-realtime"}
 
     whisper = transcribe_service.get_whisper_model()
     model_size = model or whisper.model_size
@@ -295,10 +328,6 @@ async def _transcribe_file(
         raise ValueError(
             f"Invalid STT model '{model_size}'. Must be one of: {', '.join(valid)}"
         )
-
-    # load_audio is sync; keep the event loop responsive.
-    audio, sr = await asyncio.to_thread(load_audio, str(path))
-    duration = len(audio) / sr
 
     if (
         not whisper.is_loaded() or whisper.model_size != model_size
