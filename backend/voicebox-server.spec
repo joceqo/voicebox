@@ -2,7 +2,6 @@
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 from PyInstaller.utils.hooks import copy_metadata
-from PyInstaller.utils.hooks import collect_data_files
 
 datas = []
 binaries = []
@@ -30,14 +29,6 @@ tmp_ret = collect_all('lazy_loader')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('librosa')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-# librosa uses lazy_loader, which reads its __init__.pyi stubs at runtime to
-# resolve the lazy submodule map. collect_all / collect_data_files skip .pyi
-# (treated as source), so they must be collected explicitly — otherwise
-# lazy_loader raises "Cannot load imports from non-existent stub .../librosa/
-# core/__init__.pyi" on the first librosa access (e.g. during transcription).
-datas += collect_data_files('librosa', includes=['**/*.pyi'])
-# lazy_loader itself ships no .pyi, but other lazily-loaded deps might; keep the
-# pattern handy if more "non-existent stub" errors surface for other packages.
 tmp_ret = collect_all('qwen_tts')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('inflect')

@@ -1463,7 +1463,7 @@ pub fn run() {
                                         &menu_bar_item2, &sep3b, &quit_item2,
                                     ])?;
                                     if let Some(tray_icon) = app.tray_by_id("voicebox_tray") {
-                                        let _ = tray_icon.set_menu(Some(&new_menu));
+                                        let _ = tray_icon.set_menu(Some(new_menu));
                                     }
                                     Ok(())
                                 })();
